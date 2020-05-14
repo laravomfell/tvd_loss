@@ -44,10 +44,25 @@ class TVDMaster():
         
         
     def get_histogram(self):       
-        self.hist_X = np.unique(self.X, return_counts = True, axis=0)
-        self.hist_Y = np.unique(self.Y, return_counts = True)
+        
+        # get empirical pmf for X
+        self.hist_X = np.unique(self.X, return_counts = True, 
+                                return_inverse = True, axis=0)
+        self.epmf_X = self.hist_X[2][self.hist_X[1]] / self.n
+        
+        # get empirical pmf for Y
+        self.hist_Y = np.unique(self.Y, return_counts = True, 
+                                return_inverse = True)
+        self.epmf_Y = self.hist_Y[2][self.hist_Y[1]] / self.n
+        
+        # get empirical pmf for the joint distribution of (Y,X)
         self.hist_YX = np.unique(np.hstack((np.atleast_2d(self.Y).T, self.X)),
-                            return_counts = True, axis=0)
+                            return_counts = True, axis=0, return_inverse = True)
+        self.epmf_YX = self.hist_YX[2][self.hist_YX[1]] / self.n
+        
+        # get empirical pmf for the conditional distro Y|X
+        self.epmf_Y_cond_X = self.epmf_YX / self.epmf_X
+    
     
     def run(self):
         
@@ -61,12 +76,18 @@ class TVDMaster():
         def objective(params):
             # define objective w.r.t. params
             
-            objective_value = np.sum(
-                        poisson.logpmf(self.Y, 
-                                       np.exp(np.matmul(self.X, params)))
-                    )
-                        
-            observed_counts = self.
+            # evaluate p_{\theta}(y_j|x_i) for all i,j
+            lambdas = np.exp(np.matmul(self.X, params))
+            data_lik = poisson.pmf(np.repeat(self.Y,self.n),
+                        np.tile(lambdas,self.n))
+            
+            # evaluate p_{\theta}(y_j \notin {y_1, ... y_n}|x_i) for all i,j
+            remainder_lik = 1.0 - np.sum( 
+                    data_lik.reshape(self.n,self.n), axis=0)
+            
+            # compute the estimated TVD
+            
+            
             
             return objective_value
                     
@@ -110,5 +131,12 @@ print(inference.params)
 
 
 
-
-
+"""
+def objective(params):
+            # define objective w.r.t. params
+            
+            objective_value = np.sum(
+                        poisson.logpmf(self.Y, 
+                                       np.exp(np.matmul(self.X, params)))
+                    )
+"""
