@@ -11,7 +11,7 @@ Description:
 
 import autograd.numpy as np
 import autograd.numpy.random as npr
-from autograd.scipy.misc import logsumexp
+#from autograd.scipy.misc import logsumexp
 from autograd.scipy.stats import poisson
 from autograd import grad
 
@@ -104,93 +104,7 @@ class TVDMaster():
         self.Y_cond_X_pmf[map_to_Y, map_to_X] = self.YX_pmf
         # divide by the MARGINAL probabilities
         self.Y_cond_X_pmf = self.Y_cond_X_pmf / self.X_pmf
-     
-        
-    def test_objective(self):
-        
-         # Step 1: construct the empirical pmfs
-        self.get_histogram()
-        
-        # Step 3: Define/obtain gradient w.r.t. the parameters
-        def objective(params):
-            # define objective w.r.t. params
-            
-            # Get the number of unique X and Y observations
-            n_X_unique = self.X_unique.shape[0]
-            n_Y_unique = self.Y_unique.shape[0]
-            
-            
-            #---------------------------------------------
-            # PART DEPENDING ON LIKELIHOOD (SEPARATE OUT)
-            #---------------------------------------------
-            
-            #Assign params their internal value
-            coefs = params
-            
-            # Get the model pmf for all X and Y in the sample (exactly once),ie
-            # evaluate p_{\theta}(y_j|x_i) for all unique y_j, x_i
-            #
-            # shape = (n_Y_unique, n_X_unique)
-            lambdas =  np.exp(np.matmul(self.X_unique, coefs))
-            Y_cond_X_model = poisson.pmf(
-                np.repeat(self.Y_unique,n_X_unique).reshape(n_Y_unique, n_X_unique),
-                np.transpose( np.tile(
-                        lambdas,n_Y_unique).reshape(n_X_unique, n_Y_unique))
-                )
-
-            
-            # Get the model pmf for all Y \notin sample, i.e.
-            # evaluate p_{\theta}(y \notin {y_1, ... y_n}|x_i) for all 
-            # not-observed values of y. 
-            # Easier to get as 1-\sum_{y \in sample}p_{\theta}(y|x_i) for all
-            # unique values of x_i in the sample.
-            #
-            # shape = (n_X_unique,)
-            remainder_lik = 1.0 - np.sum( 
-                    Y_cond_X_model, axis=0)
-
-            
-            # Compute the TVD as follows: 1., observe that
-            #
-            #   E_{X}[ TVD( p_{\theta}(y|x) || \hat{p}(y|x) ) ]
-            # = \sum_{x \in X} \hat{p}(x) TVD(p_{\theta}(y|x) || \hat{p}(y|x))
-            # 
-            # and 2. that for S_y being the unique values of y in the sample,
-            #
-            #   TVD(p_{\theta}(y|x) || \hat{p}(y|x))
-            # = \sum_{y \in Y}|p_{\theta}(y|x) - \hat{p}(y|x)|
-            # = \sum_{y \in S_y}|p_{\theta}(y|x) - \hat{p}(y|x)| + 
-            #   \sum_{y \notin S_y}p_{\theta}(y|x)
-            #
-            # where the last equality follows because \hat{p}(y|x) = 0 
-            # whenever y \notin S_y.
-            # Note also that \hat{p}(x) = 0 whenever x \notin S_x, so that the
-            # sum approximating the outer expectation is sparse!
-            #
-            # shape = scalar
-            
-#            print(self.Y_cond_X_pmf.shape)
-#            print(np.sum(np.abs(data_lik - self.Y_cond_X_pmf),axis=0).shape)
-            
-            expected_TVD = (1.0 / (2.0*n_X_unique) ) * np.sum(
-                self.X_pmf[:,np.newaxis] * 
-                ( np.sum(np.abs(Y_cond_X_model - self.Y_cond_X_pmf), axis=0) +
-                  remainder_lik)
-                )
-            
-                     
-            return expected_TVD
-                    
-#        gradient = grad(objective)
-        
-        
-        param_full = np.linspace(-10, 10, 1000)
-        fct_val = np.zeros(1000)
-        
-        for (i,p) in zip(range(0,1000), param_full):
-            fct_val[i] = objective(np.array([p]))
-        
-        return (param_full, fct_val)
+    
     
     
     def run(self):
@@ -220,12 +134,11 @@ class TVDMaster():
             # Get the model pmf for all X and Y in the sample (exactly once),ie
             # evaluate p_{\theta}(y_j|x_i) for all unique y_j, x_i
             #
-            # shape = (n_Y_unique, n_X_unique)
+            # IM ALSO SURE THIS IS CORRECT
             lambdas = np.exp(np.matmul(self.X_unique, coefs))
             Y_cond_X_model = poisson.pmf(
                 np.repeat(self.Y_unique,n_X_unique).reshape(n_Y_unique, n_X_unique),
-                np.transpose( np.tile(
-                        lambdas,n_Y_unique).reshape(n_X_unique, n_Y_unique))
+                np.tile(lambdas, n_Y_unique).reshape(n_Y_unique, n_X_unique) 
                 )
 
             
@@ -235,7 +148,7 @@ class TVDMaster():
             # Easier to get as 1-\sum_{y \in sample}p_{\theta}(y|x_i) for all
             # unique values of x_i in the sample.
             #
-            # shape = (n_X_unique,)
+            # LARA I'M PRETTY SURE THIS IS CORRECT
             remainder_lik = 1.0 - np.sum( 
                     Y_cond_X_model, axis=0)
 
@@ -259,17 +172,13 @@ class TVDMaster():
             #
             # shape = scalar
             
-#            print(self.Y_cond_X_pmf.shape)
-#            print(np.sum(np.abs(data_lik - self.Y_cond_X_pmf),axis=0).shape)
-            
-            expected_TVD = (1.0 / (2.0*n_X_unique) ) * np.sum(
-                self.X_pmf[:,np.newaxis] * 
+            expected_TVD = 0.5 * np.sum(
+                self.X_pmf * 
                 ( np.sum(np.abs(Y_cond_X_model - self.Y_cond_X_pmf), axis=0) +
                   remainder_lik)
                 )
                 
-            print(expected_TVD)
-            
+            #print(expected_TVD)
                      
             return expected_TVD
                     
@@ -282,7 +191,7 @@ class TVDMaster():
         if second_order:
             from scipy.optimize import minimize
             
-            x0 = -3.1 * np.ones(self.p) 
+            x0 = np.ones(self.p) 
 #            + npr.normal(0, 0.001, self.p)
             res = minimize(objective, x0, 
                            method= 'BFGS', 
@@ -330,17 +239,32 @@ class TVDMaster():
                     m2_hat = m2 / (1 - beta2**t)
                     self.params -= learning_rate * m1_hat / (np.sqrt(m2_hat) + epsilon)
                     
+               
+                
+        plot = False    
+        if plot:
+            param_full = np.linspace(-10, 10, 1000)
+            
+            fct_val = np.zeros(1000)
+        
+            for (i,p) in zip(range(0,1000), param_full):
+                fct_val[i] = objective(np.array([p]))
+        
+            self.param_full = param_full
+            self.fct_val = fct_val
             
 class PoissonSim():
     
-    def __init__(self, n, p, params):
+    def __init__(self, n, p, params, x_max):
         self.params = params
         self.n = n
         self.p = p
+        self.x_max = x_max
         
     def run(self):
         # generate covariates
-        self.X = np.random.poisson(0.5, self.n * self.p).reshape(self.n, self.p) 
+        self.X = np.random.choice(self.x_max + 1, self.n * self.p).reshape(self.n, self.p)
+        #self.X = random.sample(0.5, self.n * self.p).reshape(self.n, self.p) 
         # np.ones((self.n, self.p))
         
         # generate y
@@ -352,21 +276,18 @@ class PoissonSim():
     def diff_expectation_Y(self):
         return np.exp(np.matmul(self.X, self.params)) - self.Y
         
-mySims = PoissonSim(1000, 1, np.array([-4]))            
+mySims = PoissonSim(2000, 5, np.array([1, 1.2, 0, 0.2, 0.5]), x_max = 3)            
 X, Y = mySims.run()
 
 inference = TVDMaster(X, Y, None)
-params, fct_val = inference.test_objective()
-
-plt.plot(params, fct_val)
-plt.axvline(-4, c = "red")
-
-
 
 inference.run()
 
-
-
+#params, fct_val = inference.param_full, inference.fct_val
+#
+#plt.plot(params, fct_val)
+#plt.axvline(mySims.params, c = "green")
+#plt.axvline(inference.params.x, c = "red")
 
 print(inference.params)
 
