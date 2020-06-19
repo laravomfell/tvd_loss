@@ -17,6 +17,8 @@ from autograd import grad
 
 import matplotlib.pyplot as plt
 
+import statsmodels.api as sm
+
 
 # 
 
@@ -97,9 +99,6 @@ class TVDMaster():
                                       self.X_unique.shape[0]))
         
         
-        print("map to Y", map_to_Y,map_to_Y.shape )
-        print("map to X", map_to_X, map_to_X.shape)
-        
         # fill the matrix with the JOINT probabilities
         self.Y_cond_X_pmf[map_to_Y, map_to_X] = self.YX_pmf
         # divide by the MARGINAL probabilities
@@ -113,7 +112,9 @@ class TVDMaster():
         self.get_histogram()
         
         # Step 2: Initialize the parameter vector
-        self.params = np.zeros(self.p)  # self.params_initializer()
+        # at the MLE values
+        self.params = sm.GLM(self.Y, self.X, 
+                             family = sm.families.Poisson()).fit().params
         
         # Step 3: Define/obtain gradient w.r.t. the parameters
         def objective(params):
@@ -135,6 +136,7 @@ class TVDMaster():
             # evaluate p_{\theta}(y_j|x_i) for all unique y_j, x_i
             #
             # IM ALSO SURE THIS IS CORRECT
+
             lambdas = np.exp(np.matmul(self.X_unique, coefs))
             Y_cond_X_model = poisson.pmf(
                 np.repeat(self.Y_unique,n_X_unique).reshape(n_Y_unique, n_X_unique),
@@ -253,69 +255,3 @@ class TVDMaster():
             self.param_full = param_full
             self.fct_val = fct_val
             
-class PoissonSim():
-    
-    def __init__(self, n, p, params, x_max):
-        self.params = params
-        self.n = n
-        self.p = p
-        self.x_max = x_max
-        
-    def run(self):
-        # generate covariates
-        self.X = np.random.choice(self.x_max + 1, self.n * self.p).reshape(self.n, self.p)
-        #self.X = random.sample(0.5, self.n * self.p).reshape(self.n, self.p) 
-        # np.ones((self.n, self.p))
-        
-        # generate y
-        self.Y = np.random.poisson(np.exp(np.matmul(self.X, self.params)),
-                                   self.n)
-        
-        return (self.X, self.Y)
-    
-    def diff_expectation_Y(self):
-        return np.exp(np.matmul(self.X, self.params)) - self.Y
-        
-mySims = PoissonSim(2000, 5, np.array([1, 1.2, 0, 0.2, 0.5]), x_max = 3)            
-X, Y = mySims.run()
-
-inference = TVDMaster(X, Y, None)
-
-inference.run()
-
-#params, fct_val = inference.param_full, inference.fct_val
-#
-#plt.plot(params, fct_val)
-#plt.axvline(mySims.params, c = "green")
-#plt.axvline(inference.params.x, c = "red")
-
-print(inference.params)
-
-
-
-X_ = X
-X_unique,_,_ = np.unique(X_, return_counts = True, return_inverse = True, axis=0)
-
-
-myL = []
-for x in X_:
-    ind = 0
-    for xu in X_unique:
-        if X_.shape[1] > 1:
-            if (x == xu).all():
-                myL += [ind]
-        else:
-            if x == xu:
-                myL += [ind]
-        ind += 1
-
-"""
-def objective(params):
-            # define objective w.r.t. params
-            
-            objective_value = np.sum(
-                        poisson.logpmf(self.Y, 
-                                       np.exp(np.matmul(self.X, params)))
-                    )
-"""
-
