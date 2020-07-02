@@ -196,7 +196,7 @@ class TVDMaster():
             x0 = np.ones(self.p) 
 #            + npr.normal(0, 0.001, self.p)
             res = minimize(objective, x0, 
-                           method= 'BFGS', 
+                           method= 'Nelder-Mead', 
                            jac=gradient,
                     options={'disp': True})
             
@@ -241,7 +241,8 @@ class TVDMaster():
                     m2_hat = m2 / (1 - beta2**t)
                     self.params -= learning_rate * m1_hat / (np.sqrt(m2_hat) + epsilon)
                     
-               
+        
+        self.fittedvalues = np.exp(np.matmul(self.X, self.params.x))
                 
         plot = False    
         if plot:
