@@ -36,26 +36,32 @@ from toy import TVDMaster
 # so maybe none of this is as big a deal as I thought.
 
 # let's begin with a negbin example
-truth = np.array([0.5, 1.2, 0])
+truth = np.array([0.5, -1.2, 1])
 
-negbin = NBPoissonSim(2000, 3, truth, 3, 0.4, 1/10)
+negbin = NBPoissonSim(2000, 3, truth, 3, 0.5, 0.5)
 X, Y = negbin.run()
 
+#print(np.mean(X, axis = 0))
+#print(np.mean(Y))
+plt.hist(Y)
+
 std_nb = sm.GLM(Y, X, family = sm.families.NegativeBinomial()).fit()
+
+std_glm = sm.GLM(Y, X, family = sm.families.Poisson()).fit()
 
 # robust tvd
 negbin_tvd = TVDMaster(X, Y, None)
 negbin_tvd.run()
 
+
 # evaluation 
-out = np.column_stack((truth, std_nb.params, negbin_tvd.params.x))
+out = np.column_stack((truth, std_nb.params, std_glm.params, negbin_tvd.params.x))
 print(out)
 
 # so with this example, tvd is doing pretty badly
 
-# ZERO INFLATION
-#
-#zeroinfl = ZeroInflPoissonSim(2000, 3, truth, 3, 0.2, 0.3)
+## ZERO INFLATION
+#zeroinfl = ZeroInflPoissonSim(2000, 3, truth, 3, 0.3, 0.8)
 #X, Y = zeroinfl.run()
 #
 ## standard glm where zeroinfl does not depend on X
