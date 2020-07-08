@@ -29,3 +29,20 @@ mar: factor indicating marital status of student, with levels Single and Married
 kid5: number of children aged 5 or younger
 phd: prestige of Ph.D. department
 ment: count of articles produced by Ph.D. mentor during last 3 years
+
+carrots: outlier
+success: number of insectbite free carrots
+total: total carrots per block
+logdose: log insecticide dose
+block: experimental block
+
+Epilepsy
+53 epilepsy patients
+ID: patient id
+Y1: number of seizures in the two weeks after treatment
+Y2: number of seizures in weeks 3-4 after treatment
+Y3: number of seizures in weeks 5-6 after treatment
+Y4: number of seizures in weeks 7-8 after treatment
+Base: number of seizures in two weeks prior to treatment
+Age: patient age in years
+Trt: placebo or drug
