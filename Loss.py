@@ -85,7 +85,7 @@ class TvdLossPoissonGLM(Loss):
         """Initialize the parser object"""
         params = 0.1 * np.random.randn(parser.num_params)        
         params[ parser.get_indexes(params, 'log_variance') ] = (
-            params[ parser.get_indexes(params, 'log_variance') ] - np.log(1))
+            params[ parser.get_indexes(params, 'log_variance') ] - np.log(0.001))
         
         log_conversion = None #np.zeros((self.d, 1), dtype=bool)        
 
@@ -111,6 +111,16 @@ class TvdLossPoissonGLM(Loss):
         coef_sample = random.normal(jax_prng_key, (K, self.d)) * jnp.sqrt(v_c) + m_c
         
         return coef_sample
+    
+    
+    
+    def get_lambdas(self, X_unique, coef_sample):
+        """This loss function uses the GLM reparameterization of lambda|X, 
+           I.e. we use lambda(x) = exp(theta * x) 
+        """
+        return jnp.transpose(
+                jnp.exp(jnp.matmul(X_unique, jnp.transpose(coef_sample)))
+            )
     
     
     def avg_loss(self, q_sample, histogram_object):
@@ -142,11 +152,8 @@ class TvdLossPoissonGLM(Loss):
         
         
         # shape = (K, n_X_unique)
-        lambdas = jnp.transpose(
-                jnp.exp(jnp.matmul(X_unique, jnp.transpose(coef_sample)))
-            )
+        lambdas = self.get_lambdas(X_unique, coef_sample)
         
-        print(lambdas)
         
         # Compute the conditional model probabilities, i.e. p(Y=y|X=x) for 
         # all values of y and x that were observed in-sample"""
@@ -168,8 +175,6 @@ class TvdLossPoissonGLM(Loss):
         Y_cond_X_model = poisson.pmf(
                 Y_K_blocks, lambdas_blocks 
             )
-        
-        return lambdas
         
         
         # Get the sum of all probabilities for values that were NOT observed 
@@ -213,7 +218,7 @@ class TvdLossPoissonGLM(Loss):
         
         expected_TVD = 0.5 * jnp.sum(
                 X_pmf * 
-                ( jnp.sum(np.abs(Y_cond_X_model - pmf_K_blocks), axis=0) +
+                ( jnp.sum(jnp.abs(Y_cond_X_model - pmf_K_blocks), axis=0) +
                   remainder_lik
                 )
             )
@@ -233,13 +238,127 @@ class TvdLossPoissonGLM(Loss):
 
         
         
-        param_names = ['coefficient means', 'coefficient variances'
+        param_names = ['coefficient means (GLM)', 'coefficient variances'
                        ]
         param_values = [m_c, v_c]
         
         return (param_names, param_values)
     
+    
+    
+class TvdLossPoissonSoftplus(TvdLossPoissonGLM):
+    """Same as the TVD loss Poisson GLM, but the link function for lambda is
+    different. In particular, we have lambda(x) = softplus(x), which hopefully
+    makes the gradients nicer"""
+    
+    def get_lambdas(self, X_unique, coef_sample):
+        """This loss function uses the GLM reparameterization of lambda|X, 
+           I.e. we use lambda(x) = exp(theta * x) 
+        """
+        return jnp.transpose(
+                jnp.logaddexp(jnp.matmul(X_unique, jnp.transpose(coef_sample)), 0)
+            )
+    
+    def initializer(self, X, Y, params, parser):
+        """Returns the Maximum Likelihood Estimate, which we use to initialize
+        the variational parameters"""
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson()).fit().params
+        X_mean = np.mean(X, 0)
+        params[ parser.get_indexes(params, 'mean') ] = (MLE * X_mean)
+        return params
+    
+    
+    def report_parameters(self, q_parser, q_params):
         
+        v_c = np.exp(-q_parser.get(q_params, 'log_variance'))[ :, 0 ]
+        m_c = q_parser.get(q_params, 'mean')[ :, 0 ] 
+
+        
+        param_names = ['coefficient means (SOFTPLUS)', 'coefficient variances'
+                       ]
+        param_values = [m_c, v_c]
+        
+        return (param_names, param_values)
+    
+    
+class TvdLossPoissonSquare(TvdLossPoissonGLM):
+    """Same as the TVD loss Poisson GLM, but the link function for lambda is
+    different. In particular, we have lambda(x) = square(x), which hopefully
+    makes the gradients nicer"""
+    
+    def get_lambdas(self, X_unique, coef_sample):
+        """This loss function uses the GLM reparameterization of lambda|X, 
+           I.e. we use lambda(x) = exp(theta * x) 
+        """
+        return jnp.transpose(         
+                jnp.matmul(X_unique, jnp.transpose(coef_sample)) ** 2
+            )
+    
+    def initializer(self, X, Y, params, parser):
+        """Returns the Maximum Likelihood Estimate, which we use to initialize
+        the variational parameters"""
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson()).fit().params
+        X_mean = np.mean(X, 0)
+        params[ parser.get_indexes(params, 'mean') ] = np.sqrt(np.exp(MLE * X_mean))/X_mean
+        return params
+    
+    
+    def report_parameters(self, q_parser, q_params):
+        
+        v_c = np.exp(-q_parser.get(q_params, 'log_variance'))[ :, 0 ]
+        m_c = q_parser.get(q_params, 'mean')[ :, 0 ] 
+
+        
+        param_names = ['coefficient means (SQUARE)', 'coefficient variances'
+                       ]
+        param_values = [m_c, v_c]
+        
+        return (param_names, param_values)
+
+
+class TvdLossPoissonSqrt(TvdLossPoissonGLM):
+    """Same as the TVD loss Poisson GLM, but the link function for lambda is
+    different. In particular, we have lambda(x) = |abs(x)|^1/2, which hopefully
+    makes the gradients nicer"""
+    
+    def __init__(self, d, weight=1.0, root = 2.0):
+        self.d = d
+        # this object is only used if 'None' is passed into the 'draw_samples'
+        # function. This ensures we can use the loss functions with scipy
+        # optimizers, as it gives the loss a way to change its own seed
+        self.jax_prng_key = random.PRNGKey(0)
+        self.weight = weight
+        self.root = root
+    
+    def get_lambdas(self, X_unique, coef_sample):
+        """This loss function uses the GLM reparameterization of lambda|X, 
+           I.e. we use lambda(x) = exp(theta * x) 
+        """
+        return jnp.transpose(         
+                jnp.power(jnp.abs(jnp.matmul(X_unique, jnp.transpose(coef_sample))), 1.0/self.root)
+            )
+    
+    def initializer(self, X, Y, params, parser):
+        """Returns the Maximum Likelihood Estimate, which we use to initialize
+        the variational parameters"""
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson()).fit().params
+        X_mean = np.mean(X, 0)
+        params[ parser.get_indexes(params, 'mean') ] = np.power(np.exp(MLE * X_mean), self.root) /np.abs(X_mean)
+        return params
+    
+    
+    def report_parameters(self, q_parser, q_params):
+        
+        v_c = np.exp(-q_parser.get(q_params, 'log_variance'))[ :, 0 ]
+        m_c = q_parser.get(q_params, 'mean')[ :, 0 ] 
+
+        
+        param_names = ['coefficient means (' + str(self.root) + '-th root)', 'coefficient variances'
+                       ]
+        param_values = [m_c, v_c]
+        
+        return (param_names, param_values)
+    
     
 class LogNormalLossBLR(Loss):
     """Compute log likelihood loss between data & parameters (NOT q_params,

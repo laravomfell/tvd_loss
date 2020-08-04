@@ -227,6 +227,9 @@ class BBGVI_TVD(BBGVI):
                 print("Div:", self.D.prior_regularizer(q_params, 
                                                       q_parser, converter)
                     )
+                print("Total:", jnp.mean(self.n * self.L.avg_loss(q_sample, 
+                                histogram_object))
+                    + self.D.prior_regularizer(q_params, q_parser, converter))
             
             return (jnp.mean(self.n * self.L.avg_loss(q_sample, 
                                 histogram_object))
@@ -331,14 +334,26 @@ class BBGVI_TVD(BBGVI):
                         q_sample = self.draw_samples(q_params, jax_key_integer)
                         return jnp.mean(self.n * self.L.avg_loss(
                             q_sample, histogram_object))
+                    def func2(q_params):
+                        return self.D.prior_regularizer(q_params, 
+                               self.q_parser, self.converter)
                     
                     grad1 = grad(func)
-                    grad2 = grad(self.D.prior_regularizer)
+                    grad2 = grad(func2)
                     
                     print("Loss grad:", grad1(q_params))
                     print("Div grad:", grad2(q_params))
+                    X_unique = histogram_object[0]
+                    print("q param samples:", q_sample)
+                    print("max and min samples:", np.min(q_sample), np.max(q_sample))
+                    print("lambdas: ", self.L.get_lambdas(X_unique, q_sample))
+                    print("sorted lambdas:", np.sort(self.L.get_lambdas(X_unique, q_sample)))
+                    print("max and min lambdas:", 
+                          np.min(self.L.get_lambdas(X_unique, q_sample)), 
+                          np.max(self.L.get_lambdas(X_unique, q_sample)))
+                          
                         
-                    
+                    self.report_parameters()
                     sys.exit("NAN IN GRADIENT! Computation aborted")
                     
                     

@@ -33,7 +33,7 @@ import statsmodels.discrete.count_model as d_sm
 from toy import TVDMaster
 from BBGVI import BBGVI_TVD
 from Divergence import MFN_MFN_KLD 
-from Loss import TvdLossPoissonGLM 
+from Loss import TvdLossPoissonGLM, TvdLossPoissonSoftplus, TvdLossPoissonSquare,TvdLossPoissonSqrt
 
 import pandas as pd
 
@@ -61,6 +61,13 @@ Y = Y.to_numpy()
 X = X.to_numpy()
 Y = Y.astype('float64') 
 X = X.astype('float64') 
+
+# normalize your covariates
+#X = X - np.mean(X, 0) 
+
+# add some jitter to avoid that the first column (which consists in 1s) is 
+# exactly zero
+#
 
 
 # split data into training and test data.#
@@ -90,16 +97,21 @@ if type == "ZI":
 # TVD 2 -- new inference method
 n, d = X.shape
 loss_weight = 1.0
+root = 4.0
 print(X.shape)
 D = MFN_MFN_KLD(np.zeros(d), np.ones(d)*5)
-L = TvdLossPoissonGLM(d, loss_weight)
+L = TvdLossPoissonSqrt(d, loss_weight, root) # by default, we take the 2-nd root. 
+                                       # Can change this to p-th root by passing argument
 jax_key_seed = 1
-learning_rate = 0.01
+learning_rate = 0.1
 tvd2 = BBGVI_TVD(D, L, jax_key_seed)
 K=100
-epochs = 500
+epochs = 1000
 # optimizer methods: BFGS, Nelder-Mead, ADAM
 tvd2.fit_q(Y,X,K, epochs, learning_rate, optimizer = "ADAM")
 tvd2.report_parameters()
     
 
+# some line
+
+    
