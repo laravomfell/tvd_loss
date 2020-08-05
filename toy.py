@@ -116,8 +116,8 @@ class TVDMaster():
         self.params = sm.GLM(self.Y, self.X, 
                              family = sm.families.Poisson()).fit().params
         
-        # Step 3: Define/obtain gradient w.r.t. the parameters
-        def objective(params):
+        # Step 3: Define/obtain gradient w.r.t. the parameters theta
+        def TVD_loss(params):
             # define objective w.r.t. params
             
             # Get the number of unique X and Y observations
@@ -142,6 +142,7 @@ class TVDMaster():
                 np.repeat(self.Y_unique,n_X_unique).reshape(n_Y_unique, n_X_unique),
                 np.tile(lambdas, n_Y_unique).reshape(n_Y_unique, n_X_unique) 
                 )
+            
 
             
             # Get the model pmf for all Y \notin sample, i.e.
@@ -183,24 +184,33 @@ class TVDMaster():
             #print(expected_TVD)
                      
             return expected_TVD
+    
+        #STEP 4: Define the variational objective
+        def variational_objective(kappa_params, num_theta_samples):
+            
+            # First, draw num_theta_samples from the current posterior
+            thetas = np.random.normal()
+        
                     
-        gradient = grad(objective)
+        gradient = grad(TVD_loss)
         
         
-        second_order = True
-        ADAM = False
+        second_order = False
+        ADAM = True
         
         if second_order:
             from scipy.optimize import minimize
             
             x0 = np.ones(self.p) 
 #            + npr.normal(0, 0.001, self.p)
-            res = minimize(objective, x0, 
+            res = minimize(TVD_loss, x0, 
                            method= 'Nelder-Mead', 
                            jac=gradient,
                     options={'disp': True})
             
-            self.params = res
+            self.params = res        
+            self.fittedvalues = np.exp(np.matmul(self.X, self.params.x))
+        
         
         if not second_order:
             
@@ -231,7 +241,7 @@ class TVDMaster():
                 learning_rate = 0.001
                 
                 # Step 4: Perform iterative optimization
-                for i in range(0,10000):
+                for i in range(0,100):
                     t+=1
                     gradient_value = gradient(self.params)
                     
@@ -241,8 +251,10 @@ class TVDMaster():
                     m2_hat = m2 / (1 - beta2**t)
                     self.params -= learning_rate * m1_hat / (np.sqrt(m2_hat) + epsilon)
                     
+                    print(TVD_loss(self.params))
+                    
+            self.fittedvalues = np.exp(np.matmul(self.X, self.params))
         
-        self.fittedvalues = np.exp(np.matmul(self.X, self.params.x))
                 
         plot = False    
         if plot:
@@ -251,7 +263,7 @@ class TVDMaster():
             fct_val = np.zeros(1000)
         
             for (i,p) in zip(range(0,1000), param_full):
-                fct_val[i] = objective(np.array([p]))
+                fct_val[i] = TVD_loss(np.array([p]))
         
             self.param_full = param_full
             self.fct_val = fct_val

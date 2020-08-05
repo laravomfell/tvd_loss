@@ -12,7 +12,7 @@ Description:
 
 import autograd.numpy as np
 import autograd.numpy.random as npr
-#from autograd.scipy.misc import logsumexp
+from autograd.scipy.special import logsumexp
 from autograd.scipy.stats import poisson
 from autograd import grad
 
@@ -22,6 +22,7 @@ import statsmodels.api as sm
 import statsmodels.discrete.count_model as d_sm
 
 from toy import TVDMaster
+from BBGVI import BBGVI_TVD
 
 import pandas as pd
 
@@ -35,6 +36,10 @@ def model_wrap(X, Y, type):
     
     Y = Y.to_numpy()    
     X = X.to_numpy()
+    Y = Y.astype('float64') 
+    X = X.astype('float64') 
+    
+    
     # split data into training and test data.#
     train_X, test_X, train_Y, test_Y = train_test_split(X, Y, 
                                                         train_size=0.8,
