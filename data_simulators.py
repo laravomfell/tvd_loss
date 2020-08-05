@@ -130,3 +130,30 @@ class ZeroInflPoissonSim():
         zero_part = np.concatenate((np.random.random(n_contam) > self.prob0,
                                     np.ones(self.n - n_contam)))
         return(self.X, self.Y * zero_part)
+        
+        
+        
+        
+class EpsilonPoissonSim():
+    
+    def __init__(self, n, p, params, x_max, contam, c):
+        assert 0 <= contam <= 1, "contam needs to be [0,1]"
+        assert params.shape[0] == p, "params shape needs to be p"
+        self.n = n
+        self.p = p
+        self.params = params
+        self.x_max = x_max
+        self.contam = contam
+        self.c = c
+        
+    def run(self):
+        # generate poisson outcomes + covariates
+        # generate poisson outcome + covariates
+        poisson = PoissonSim(self.n, self.p, self.params, self.x_max)
+        self.X, self.Y = poisson.run()
+        
+        # get contamination maximum index
+        n_contam = int(np.floor(self.n * self.contam))
+        # 
+        self.Y[0:n_contam] += self.c
+        return(self.X, self.Y)
