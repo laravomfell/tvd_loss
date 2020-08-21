@@ -26,37 +26,79 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import statsmodels.discrete.count_model as d_sm
 
-from data_simulators import NBPoissonSim
-from data_simulators import ZeroInflPoissonSim
+from data_simulators import NBPoissonSim, ZeroInflPoissonSim, EpsilonPoissonSim
 from toy import TVDMaster
 
+def model_wrap(X, Y, type):
 
-# One thing I didn't think about too hard is that we basically do not care
-# about the inference of the other params, just about the coefficients
-# so maybe none of this is as big a deal as I thought.
+    # next, estimate the models
+    #1. standard poisson
+    std_pois = sm.GLM(Y, X, family = sm.families.Poisson()).fit()
+    # 2. actual model    
+    if type == "NB":
+        std_act = sm.GLM(Y, X, 
+                         family = sm.families.NegativeBinomial()).fit()
+        act_params = std_act.params
+    if type == "ZI":
+        std_act = d_sm.ZeroInflatedPoisson(Y, X, None, inflation='logit').fit()
+        act_params = np.delete(std_act.params, 0)
+        
+    # 3. TVD
+    tvd = TVDMaster(X, Y, None)
+    tvd.run()
+    
+    # return params
+    out = np.column_stack((std_pois.params,
+                           act_params,
+                           tvd.params.x))
+    
+    # get fitted values
+    val = np.column_stack((std_pois.fittedvalues,
+                           std_act.fittedvalues,
+                           tvd.fittedvalues
+                           ))
+    
+    res = Y[:, None] - val
+    
+    return out, res
+
+
 
 # let's begin with a negbin example
 truth = np.array([0.5, -1.2, 1])
 
-negbin = NBPoissonSim(2000, 3, truth, 3, 0.5, 0.5)
-X, Y = negbin.run()
+#negbin = NBPoissonSim(2000, 3, truth, 3, 1, 0.5)
+#X, Y = negbin.run()
+#
+##print(np.mean(X, axis = 0))
+##print(np.mean(Y))
+#plt.hist(Y, bins=range(0, max(Y) + 5, 5))
+#
+#params, res = model_wrap(X, Y, "NB")
+#
+#print(params)
+## evaluation 
+
+
+# epsilon example
+
+eps = EpsilonPoissonSim(200, 3, truth, 3, 0.05, 50)
+X,Y = eps.run()
 
 #print(np.mean(X, axis = 0))
 #print(np.mean(Y))
-plt.hist(Y)
 
-std_nb = sm.GLM(Y, X, family = sm.families.NegativeBinomial()).fit()
+#plt.hist(Y, bins=range(0, max(Y) + 5, 5))
 
-std_glm = sm.GLM(Y, X, family = sm.families.Poisson()).fit()
+params, res = model_wrap(X, Y, "NB")
 
-# robust tvd
-negbin_tvd = TVDMaster(X, Y, None)
-negbin_tvd.run()
+plt.plot(Y, res[:,2], "b.")
+
+print(params)
 
 
-# evaluation 
-out = np.column_stack((truth, std_nb.params, std_glm.params, negbin_tvd.params.x))
-print(out)
+
+
 
 # so with this example, tvd is doing pretty badly
 
