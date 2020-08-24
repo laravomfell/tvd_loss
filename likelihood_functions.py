@@ -43,7 +43,7 @@ class PoissonLikelihood(Likelihood):
         MLE = sm.GLM(Y, X, family = sm.families.Poisson(),
                      weight = weights).fit().params
         
-        return(MLE)
+        return MLE
     
     def evaluate(self, params, Y_unique, X_unique):
         # first comupute lambda

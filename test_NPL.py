@@ -18,16 +18,11 @@ import statsmodels.api as sm
 import statsmodels.discrete.count_model as d_sm
 from sklearn.model_selection import train_test_split
 
+from scipy.stats import poisson
+
 from NPL import NPL
 from likelihood_functions import PoissonLikelihoodSqrt, PoissonLikelihood
 from data_simulators import NBPoissonSim, ZeroInflPoissonSim, EpsilonPoissonSim
-
-
-# Fig 1.
-n = 250
-Y = np.random.poisson(4, size = n)
-Y[0:24] += 10
-X = np.ones([n, 1])
 
 L1 = PoissonLikelihood(X.shape[1])
 npl_1 = NPL(L1, optimizer = "BFGS")
