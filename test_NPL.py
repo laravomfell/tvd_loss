@@ -17,16 +17,20 @@ import statsmodels.api as sm
 import statsmodels.discrete.count_model as d_sm
 from sklearn.model_selection import train_test_split
 
+from scipy.stats import poisson
+
 from NPL import NPL
 from likelihood_functions import PoissonLikelihoodSqrt, PoissonLikelihood
 from data_simulators import NBPoissonSim, ZeroInflPoissonSim, EpsilonPoissonSim
 
 
+n = 2000
 truth = np.array([0.5, -1.2, 1])
-X = np.array([np.ones(2000),
-              np.random.rand(2000),
-              np.random.normal(loc=2.0, scale=1.0, size = 2000)]).reshape(2000, 3)
-Y = np.exp(np.matmul(X, truth))
+X = np.array([np.ones(n),
+              np.random.rand(n),
+              np.random.normal(loc=2.0, scale=1.0, size = n)]).reshape(n, 3)
+Y = poisson.rvs(np.exp(np.matmul(X, truth)))
+
 Y[0:100] += 10
 # X, Y = EpsilonPoissonSim(1000, 3, truth, 3, 0.1, 10).run()
 #X, Y = ZeroInflPoissonSim(2000, 3, truth, 3, 0.2, 1).run()
