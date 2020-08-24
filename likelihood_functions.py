@@ -32,6 +32,34 @@ class Likelihood():
         return 0
 
 
+class PoissonLikelihood(Likelihood):
+    """Use the traditional link function lambda(x) = exp(xb)"""
+
+    def __init__(self, d):
+        self.d = d
+        
+    def initialize(self, Y, X, weights = None):
+        # return MLE init
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson(),
+                     weight = weights).fit().params
+        
+        return(MLE)
+    
+    def evaluate(self, params, Y_unique, X_unique):
+        # first comupute lambda
+        lambdas = np.exp(np.matmul(X_unique, params))
+        
+        # Second, use the standard poisson pmf to evaluate the likelihood
+        n_X_unique = X_unique.shape[0]
+        n_Y_unique = Y_unique.shape[0]
+        
+        Y_given_X_model = poisson.pmf(
+                np.repeat(Y_unique,n_X_unique).reshape(n_Y_unique, n_X_unique),
+                np.tile(lambdas, n_Y_unique).reshape(n_Y_unique, n_X_unique) 
+                )
+                
+        return Y_given_X_model
+
 class PoissonLikelihoodSqrt(Likelihood):
     """Use the link function lambda(x) = |abs(x)|^1/2 to make the gradients
     nicer. We still use the (transformed) MLE for initialization"""
