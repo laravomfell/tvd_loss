@@ -456,6 +456,28 @@ class PoissonLikelihood(Likelihood):
                 )
                 
         return Y_given_X_model
+    
+    def predict(self, Y,X, parameter_sample):
+        """Given a sample of (X,Y) as well as a sample of network parameters, 
+        compute p_{\theta}(Y|X) and compare against the actual values of Y"""
+        
+        B = parameter_sample.shape[0]
+        
+        
+        # Get the lambda(X, \theta_i) for all parameters \theta_i in sample.
+        # The i-th column corresponds to lambda(X, \theta_i).
+        lambdas = np.exp(np.matmul(X, np.transpose(parameter_sample)))
+        
+        # Get the predictive/test likelihoods
+        predictive_likelihoods = poisson.pmf(
+            np.repeat(Y, B).reshape(len(Y), B),lambdas)   
+        
+        # Get the MSE and MAE
+        SE = (np.repeat(Y, B).reshape(len(Y), B) - lambdas)**2
+        AE = np.abs(np.repeat(Y, B).reshape(len(Y), B) - lambdas)
+        
+        return (predictive_likelihoods, SE, AE)
+       
 
 class PoissonLikelihoodSqrt(Likelihood):
     """Use the link function lambda(x) = |abs(x)|^1/2 to make the gradients

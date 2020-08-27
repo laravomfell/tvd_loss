@@ -51,7 +51,7 @@ class NPL():
             
             # if we want, we can also initialize anew for each weight sample
             initializer = self.lklh.initialize(Y,X, weights)
-            mle = mle.append(initializer)
+            mle = mle + [initializer]
             
             # compute the minimum
             theta_j = self.minimize_TVD(initializer, weights, display_opt, j)
@@ -72,6 +72,9 @@ class NPL():
     
     def predict(self, Y,X):
         return self.lklh.predict(Y,X,self.sample)
+    
+    def predict_log_loss(self, Y, X):
+        return self.lklh.predict(Y,X,self.mle)
     
     def minimize_TVD(self, initializer, weights, display_opt, iteration):
         """Depending on the likelihood function, we can either use standard
