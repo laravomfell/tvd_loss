@@ -32,11 +32,7 @@ class NPL():
     def draw_samples(self, Y, X, B, seed = 0, display_opt = True):
         """Draws B samples from the nonparametric posterior specified via
         the likelihood and the data (Y, X)"""
-        
-        # As a reference point for analysis later, check what the MLE is
-        MLE = self.lklh.initialize(Y,X)
-        self.MLE = MLE
-        
+            
         # compute the empirical measures and associated quantities
         self.get_empirical_measures(Y,X)
         
@@ -44,6 +40,8 @@ class NPL():
         self.create_recorders(B)
         
         sample = []
+        mle = []
+        
         
         for j in range(0, B):
             
@@ -53,6 +51,7 @@ class NPL():
             
             # if we want, we can also initialize anew for each weight sample
             initializer = self.lklh.initialize(Y,X, weights)
+            mle = mle.append(initializer)
             
             # compute the minimum
             theta_j = self.minimize_TVD(initializer, weights, display_opt, j)
@@ -63,13 +62,13 @@ class NPL():
             # add +1 to the seed for the next sample
             seed = seed + 1
         
+        self.mle = np.array(mle)
         # if we store a NN, then we get layer-wise np arrays (for each sample).
         # thus, we cannot numpy-force these
         if isinstance(self.lklh, SoftMaxNN):
             self.sample = sample
         else:
             self.sample = np.array(sample)
-    
     
     def predict(self, Y,X):
         return self.lklh.predict(Y,X,self.sample)
