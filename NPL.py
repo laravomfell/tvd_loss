@@ -14,7 +14,7 @@ import numpy as np
 from scipy.stats import dirichlet
 from scipy.optimize import minimize
 from scipy.stats import poisson
-#from likelihood_functions import poisson_likelihood
+from likelihood_functions import SoftMaxNN
 
 
 class NPL():
@@ -62,14 +62,48 @@ class NPL():
             # add +1 to the seed for the next sample
             seed = seed + 1
         
-        
-        self.sample = np.array(sample)
         self.mle = np.array(mle)
+        # if we store a NN, then we get layer-wise np arrays (for each sample).
+        # thus, we cannot numpy-force these
+        if isinstance(self.lklh, SoftMaxNN):
+            self.sample = sample
+        else:
+            self.sample = np.array(sample)
     
+    def predict(self, Y,X):
+        return self.lklh.predict(Y,X,self.sample)
     
     def minimize_TVD(self, initializer, weights, display_opt, iteration):
+        """Depending on the likelihood function, we can either use standard
+        optimizers (scipy-built BFGS) or we have to use first-order methods
+        (if the likelihood function corresponds to a NN)"""
+        if isinstance(self.lklh, SoftMaxNN):
+            return self.minimize_TVD_SGD(
+                                initializer, weights, display_opt, iteration)
+        else:
+            return self.minimize_TVD_scipy(
+                                initializer, weights, display_opt, iteration)
+    
+    def minimize_TVD_SGD(self, initializer, weights, display_opt, iteration):
         """This function uses self.lklh and its inputs to compute the TVD
-        between the (re-weighted) empirical measures and the model"""
+        between the (re-weighted) empirical measures and the model using 
+        first-order optimizers from pytorch (SGD)"""
+        
+        # call directly back to likelihood function (assuming that each 
+        # observation is *unique*, which is true for out experiments 
+        # since we will have  at least *one* continuous covariate)
+        
+        # It's slightly inelegant to shift this minimization into the loss
+        # function (from a software point of view), but what happens there is
+        # essentially the same to what happens inside the _scipy function.
+        
+        return self.lklh.minimize_TVD(self.Y_unique, self.X_unique, weights)
+        
+    
+    def minimize_TVD_scipy(self, initializer, weights, display_opt, iteration):
+        """This function uses self.lklh and its inputs to compute the TVD
+        between the (re-weighted) empirical measures and the model using 
+        second-order optimizers from scipy (BFGS)"""
         
         # call to a separate function that performs the re-weighting step
         rw_X_pmf, rw_Y_given_X_pmf = self.reweight_empirical_measures(weights)

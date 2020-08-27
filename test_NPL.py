@@ -22,6 +22,7 @@ from scipy.stats import poisson
 
 from NPL import NPL
 from likelihood_functions import PoissonLikelihoodSqrt, PoissonLikelihood
+from likelihood_functions import SoftMaxNN
 from data_simulators import NBPoissonSim, ZeroInflPoissonSim, EpsilonPoissonSim
 
 L1 = PoissonLikelihood(X.shape[1])
@@ -35,7 +36,6 @@ mle = sm.GLM(Y, X, family = sm.families.Poisson()).fit().params()
 npl = npl_1.sample.mean(axis = 0)
 
 plt.hist(Y)
-
 
 
 # truth = np.array([0.5, -1.2, 1])
@@ -59,3 +59,57 @@ plt.hist(Y)
 # npl_sampler = NPL(L, optimizer = "BFGS")
 # B=100
 # npl_sampler.draw_samples(Y,X,B)
+
+# test if the NN works (if both covariates are positive, Y=1. Y=0 otherwise)
+X = np.array([[1.0, 2.0], 
+              [2.0, 3.1], 
+              [5.0, 6.3],
+              [5.3, 2.9],
+              [6.7, 9.0],
+              [-2.0, -1.0],
+              [-2.0, -3.1], 
+              [-5.0, -6.3],
+              [-5.3, -2.9],
+              [-6.7, -9.0]])
+
+Y = np.array([0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1], dtype=int)    
+
+nn_lklh = SoftMaxNN(2, 2, 2, reset_initializer=True, 
+            batch_size = 10,
+            epochs_TVD = 1000, epochs_vanilla = 10) #network with 10 hidden layers
+
+n=10 
+d=2
+npl_sampler = NPL(nn_lklh, optimizer = "BFGS")
+B=100
+npl_sampler.draw_samples(Y,X,B)
+
+
+npl_sampler.predict(Y,X)
+
+# nn_lklh.initialize(Y,X)
+# weights = np.ones(10) * 1.0/ 10
+# nn_lklh.minimize_TVD(Y,X,weights)
+
+
+
+#1. standard poisson
+#std_pois = sm.GLM(Y, X, family = sm.families.Poisson()).fit()
+
+if False:
+    # TVD 2 -- new inference method
+    n, d = X.shape
+    L = PoissonLikelihood(d)
+    
+    npl_sampler = NPL(L, optimizer = "BFGS")
+    B=100
+    npl_sampler.draw_samples(Y,X,B)
