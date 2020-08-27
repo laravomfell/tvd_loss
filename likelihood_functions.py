@@ -9,7 +9,7 @@ Description: Likelihood function wrappers for use within NPL class
 """
 
 import numpy as np
-from scipy.stats import poisson
+from scipy.stats import poisson, norm
 from scipy.optimize import minimize
 import statsmodels.api as sm
 
@@ -427,6 +427,42 @@ class SoftMaxNN(Likelihood):
         cross_entropy = np.array(cross_entropy)     
         
         return (predictions, accuracy, cross_entropy)
+
+class ProbitLikelihood(Likelihood):
+
+    def __init__(self, name="Probit"):
+        self.name = name
+        
+    def initialize(self, Y, X, weights = None):
+        # return MLE init
+        # model = sm.GLM(Y, X, family = sm.families.Binomial(), weight = weights)
+        # MLE = model.fit()
+        
+        MLE = sm.GLM(Y, X, family = sm.families.Binomial(
+            sm.families.Binomial.links[1]),
+                      weight = weights).fit().params
+        # MLE = sm.Probit(Y,X).fit().params
+
+        return MLE
+    
+    def evaluate(self, params, Y_unique, X_unique):
+        
+        # first comupute coefficients * X
+        inner_products = np.matmul(X_unique, params)
+        
+        # Second, use the normal cdf to transform into [0,1]
+        probs = norm.cdf(inner_products)
+
+        # Y|X is given by probs if Y = 1 and 1 - probs if Y = 0
+        n_X_unique = X_unique.shape[0]
+        n_Y_unique = 2 # WE ASSUME BOTH LABELS ARE OBSERVED AT LEAST ONCE
+        
+        Y_given_X_model = np.zeros((n_Y_unique, n_X_unique))
+
+        Y_given_X_model[0,:] = 1.0 - probs
+        Y_given_X_model[1,:] = probs
+                
+        return Y_given_X_model
     
 
 class PoissonLikelihood(Likelihood):
@@ -437,9 +473,8 @@ class PoissonLikelihood(Likelihood):
         
     def initialize(self, Y, X, weights = None):
         # return MLE init
-        MLE = sm.GLM(Y, X, family = sm.families.Poisson(),
-                     weight = weights).fit().params
-        
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson(sm.families.Binomial.links[1]),
+                     weight = weights).fit().params      
         return MLE
     
     def evaluate(self, params, Y_unique, X_unique):
@@ -477,7 +512,8 @@ class PoissonLikelihood(Likelihood):
         AE = np.abs(np.repeat(Y, B).reshape(len(Y), B) - lambdas)
         
         return (predictive_likelihoods, SE, AE)
-       
+        
+
 
 class PoissonLikelihoodSqrt(Likelihood):
     """Use the link function lambda(x) = |abs(x)|^1/2 to make the gradients
