@@ -18,9 +18,9 @@ class Likelihood():
     """An empty/abstract class that dictates what functions a sub-class of the 
     likelihood type needs to have"""
     
-    def __init__(self, d):
-        self.d = d
-        
+    def __init__(self, name = None):
+        self.name = name
+    
     def initialize(self,Y,X):
         """Returns an initialization for the likelihood parameters, typically
         based on the maximum likelihood estimate."""
@@ -35,8 +35,8 @@ class Likelihood():
 class PoissonLikelihood(Likelihood):
     """Use the traditional link function lambda(x) = exp(xb)"""
 
-    def __init__(self, d):
-        self.d = d
+    def __init__(self, name = "Poisson with log-link"):
+         self.name = name
         
     def initialize(self, Y, X, weights = None):
         # return MLE init
