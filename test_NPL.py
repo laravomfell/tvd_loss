@@ -59,11 +59,19 @@ Y = np.array([0,
               1,
               1,
               1,
-              1], dtype=int)    
+              1], dtype=int) 
 
-nn_lklh = SoftMaxNN(2, 2, 2, reset_initializer=True, 
-            batch_size = 10,
-            epochs_TVD = 1000, epochs_vanilla = 10) #network with 10 hidden layers
+X_test = np.array([[10.0, 9.0],
+                   [0.5, 1.3], 
+                   [-5.4, -20.8], 
+                   [-0.2, -2]])
+Y_test = np.array([0,0,1,1])
+
+X = X + np.random.normal(0, 100, (10,2))   
+
+nn_lklh = SoftMaxNN(2, 100, 2, reset_initializer=True, 
+            batch_size = 64,
+            epochs_TVD = 1000, epochs_vanilla = 10000) #network with 10 hidden layers
 
 n=10 
 d=2
@@ -72,7 +80,8 @@ B=100
 npl_sampler.draw_samples(Y,X,B)
 
 
-npl_sampler.predict(Y,X)
+predictions, accuracy, cross_entropy = npl_sampler.predict(Y_test,X_test)
+predictions_init, accuracy_init, cross_entropy_init = npl_sampler.lklh.predict_initializer(Y_test,X_test)
 
 # nn_lklh.initialize(Y,X)
 # weights = np.ones(10) * 1.0/ 10
