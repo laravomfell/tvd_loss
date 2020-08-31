@@ -23,7 +23,7 @@ from scipy.stats import poisson, norm
 from NPL import NPL
 from likelihood_functions import ProbitLikelihood, PoissonLikelihood
 from likelihood_functions import SoftMaxNN
-from data_simulators import NBPoissonSim, ZeroInflPoissonSim, EpsilonPoissonSim
+from data_simulators import EpsilonContam
 
 # L1 = PoissonLikelihood(X.shape[1])
 # npl_1 = NPL(L1, optimizer = "BFGS")
@@ -140,7 +140,7 @@ if True:
     
     nn_lklh = SoftMaxNN(2, 100, 2, reset_initializer=True, 
                 batch_size = 64,
-                epochs_TVD = 1000, epochs_vanilla = 10000) #network with 10 hidden layers
+                epochs_TVD = 1000, epochs_vanilla = 1000) #network with 10 hidden layers
     
     n=10 
     d=2
