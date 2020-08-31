@@ -72,7 +72,7 @@ if False:
     print("MSE MLE", np.mean(SE))
     print("MAE MLE", np.mean(AE))
 
-if False:
+if True:
     # n=3000
     # truth = np.array([0.01, -0.25, 0.25])
     # X = np.array([np.ones(n),
