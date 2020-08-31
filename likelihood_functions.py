@@ -474,19 +474,18 @@ class ProbitLikelihood(Likelihood):
         compute p_{\theta}(Y|X) and compare against the actual values of Y"""
         
         # first comupute coefficients * X; shape (n,B)
-        n = X.shape[0]
-        B, _ = parameter_sample.shape
         inner_products = np.matmul(X, np.transpose(parameter_sample))
         
         # Second, use the normal cdf to transform into [0,1]
         log_probs = norm.logcdf(inner_products)
         
         # compute predictions
-        #print("[np.where(probs > 0.5)]", list(zip(np.where(mat > 0.5)[0], np.where(mat > 0.5)[1])).shape)
-        predictions = np.zeros((n,B))
-        tuples = np.where(np.exp(log_probs) > 0.5)
-        indices = np.array(list(zip(tuples[0], tuples[1])))
-        predictions[indices] = 1
+        predictions = (np.exp(log_probs) > 0.5).astype('float')
+        # #print("[np.where(probs > 0.5)]", list(zip(np.where(mat > 0.5)[0], np.where(mat > 0.5)[1])).shape)
+        # predictions = np.zeros((n,B))
+        # tuples = np.where(np.exp(log_probs) > 0.5)
+        # indices = np.array(list(zip(tuples[0], tuples[1])))
+        # predictions[indices] = 1
         
         # use predictions for accuracy computation
         accuracy = np.abs(predictions - Y[:,np.newaxis])
