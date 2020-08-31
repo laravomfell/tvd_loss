@@ -73,18 +73,21 @@ class NPL():
     def predict(self, Y,X):
         return self.lklh.predict(Y,X,self.sample)
     
+    def predict_log_loss(self, Y, X):
+        return self.lklh.predict(Y,X,self.mle)
+    
     def minimize_TVD(self, initializer, weights, display_opt, iteration):
         """Depending on the likelihood function, we can either use standard
-        optimizers (scipy-built BFGS) or we have to use first-order methods
+        optimizers (scipy-built BFGS) or we have to use pytorch's methods
         (if the likelihood function corresponds to a NN)"""
         if isinstance(self.lklh, SoftMaxNN):
-            return self.minimize_TVD_SGD(
+            return self.minimize_TVD_NN(
                                 initializer, weights, display_opt, iteration)
         else:
             return self.minimize_TVD_scipy(
                                 initializer, weights, display_opt, iteration)
     
-    def minimize_TVD_SGD(self, initializer, weights, display_opt, iteration):
+    def minimize_TVD_NN(self, initializer, weights, display_opt, iteration):
         """This function uses self.lklh and its inputs to compute the TVD
         between the (re-weighted) empirical measures and the model using 
         first-order optimizers from pytorch (SGD)"""

@@ -43,6 +43,14 @@ class Likelihood():
 class NN_logsoftmax(nn.Module):
     """Build a new class for the network you want to run, returning log 
     softmax"""
+    
+    def set_parameters(self, initializers):
+        """Set the parameter values obtained from vanilla NN as initializers"""
+        with torch.no_grad():
+            self.fc1.weight.data = torch.from_numpy(initializers[0].copy())
+            self.fc1.bias.data = torch.from_numpy(initializers[1].copy())
+            self.fc2.weight.data = torch.from_numpy(initializers[2].copy())
+            self.fc2.bias.data = torch.from_numpy(initializers[3].copy())
           
     """Single layer network with layer_size nodes"""
     def __init__(self, d, layer_size, num_classes):
@@ -60,14 +68,6 @@ class NN_logsoftmax(nn.Module):
 class NN_softmax(NN_logsoftmax):
     """Build a new class for the network you want to run, returning non-log 
     softmax"""
-    
-    def set_parameters(self, initializers):
-        """Set the parameter values obtained from vanilla NN as initializers"""
-        with torch.no_grad():
-            self.fc1.weight.data = torch.from_numpy(initializers[0].copy())
-            self.fc1.bias.data = torch.from_numpy(initializers[1].copy())
-            self.fc2.weight.data = torch.from_numpy(initializers[2].copy())
-            self.fc2.bias.data = torch.from_numpy(initializers[3].copy())
 
     """Return the softmax values for each of the classes"""
     def forward(self, x):
@@ -100,8 +100,8 @@ class SoftMaxNN(Likelihood):
         """From Y = [0,2,1] -> Y = [[1,0,0], [0,0,1], [0,1,0]]"""
         n = len(Y)
         self.Y_new = np.zeros((n,self.num_classes))
-        self.Y_new[range(0,n), Y] = 1.0
-        self.Y_new = torch.from_numpy(self.Y_new).float()
+        self.Y_new[range(0,n), Y.copy()] = 1.0
+        self.Y_new = torch.from_numpy(self.Y_new.copy()).float()
     
     
     def initialize(self, Y, X, weights = None):
@@ -209,7 +209,53 @@ class SoftMaxNN(Likelihood):
     def evaluate(self, Y_unique, X_unique):
         return None
     
+    
     def minimize_TVD(self, Y, X, weights):
+        
+        # set parameters in TVD network to those optimal for vanilla NN  
+              
+        if self.reset_initializer:
+            self.NN_TVD.set_parameters(self.initializer)
+    
+        # create the TVD loss function
+        def TVD_loss(network_outputs, weights, transformed_Y):
+            
+            # Note that if all observation pairs (X,Y) are unique, we can 
+            # simplify the loss to 
+            # \sum_{x_i \in \sample} w(x) * 
+            #           \sum_{y=1,...,num_classes}|p_\theta(y|x) - 1_{y_i = y}| 
+            
+            Y_cond_X_model = network_outputs
+            
+            estimated_TVD = 0.5 * torch.sum(
+                torch.from_numpy(weights).float() * 
+                torch.sum(torch.abs(Y_cond_X_model - transformed_Y), axis=1) 
+                )
+             
+            return estimated_TVD
+        
+        
+        # convert X and Y to Variables
+        X = torch.from_numpy(X).float()
+        
+        # define a closure (which clears gradients and computes the loss)
+        def closure():
+            net_out = self.NN_TVD(X)
+            loss = TVD_loss(net_out, weights, self.Y_new)
+            self.optimizer.zero_grad()
+            loss.backward()
+            return loss
+        
+        # create a stochastic gradient descent optimizer
+        self.optimizer = torch.optim.LBFGS(self.NN_TVD.parameters(), lr=self.learning_rate)
+        self.optimizer.step(closure)
+        
+        # extract the parameter value at the optimum and return it
+        return self.get_network_parameters(self.NN_TVD)
+    
+    
+    # NOTE: We don't use this
+    def minimize_TVD_SGD(self, Y, X, weights):
         
         # set parameters in TVD network to those optimal for vanilla NN  
               
@@ -245,7 +291,7 @@ class SoftMaxNN(Likelihood):
                 torch.from_numpy(weights).float() * 
                 torch.sum(torch.abs(Y_cond_X_model - transformed_Y), axis=1) 
                 )
-            
+             
             return estimated_TVD
         
         
@@ -284,38 +330,103 @@ class SoftMaxNN(Likelihood):
         """Given a sample of (X,Y) as well as a sample of network parameters, 
         compute p_{\theta}(Y|X) and compare against the actual values of Y"""
         
-        n = len(Y)
+        n,d = X.shape
         
-        # get the transformed version of the test values for Y again
-        # (overwrite the Y_new that was created at training time, as you don't
-        # need it anymore)
+        Y_new = np.zeros((n,self.num_classes))
+        Y_new[range(0,n), Y] = 1.0
         
-        self.store_transformed_Y(Y)
+        # create an empty list to store full predictions, accuracy (0-1) & CE
+        predictions = []
+        accuracy = []
+        cross_entropy = []
         
         # loop over parameter samples; each theta will be a list
         for theta in parameter_sample:
             
-            # DEBUG
-            #print(theta)
-            
             # set the parameter values of the NN to theta
-            self.NN_TVD.set_parameters(theta)
+            # NOTE: We use the vanilla NN because it returns the log-softmax
+            #       (rather than the softmax). Since we endow it with the 
+            #       parameters extracted from the TVD network, this means that
+            #       we will get the log softmax with the TVD-optimal weights 
+            self.NN_vanilla.set_parameters(theta)
     
             # loop over observations
             for i in range(0,n):
                 
                 # compute the model probability vectors p_{\theta}(Y|X) w. fixed X
-                model_probabilities = self.NN_TVD(torch.from_numpy(X[i,:]).float())
+                # print("X[i,:]", X[i,:].shape)
+                log_probabilities = self.NN_vanilla(torch.from_numpy(
+                    X[i,:].reshape(1,d)).float())
                 # print(model_probabilities.type)
                 # print(model_probabilities.shape)
+                
+                # extract the probabilities and store them
+                log_model_probabilities = log_probabilities.data.detach().numpy().copy()
+                predictions += [log_model_probabilities]
             
                 # compute accuracy (whether or not we made mistake in prediction)
-                acc = 0
+                biggest_probability_index = np.argmax(log_model_probabilities)
+                if biggest_probability_index == Y[i]:
+                    accuracy += [1]
+                else:
+                    accuracy += [0]
                 
                 # compute cross-entropy 
+                cross_entropy += [np.sum(log_model_probabilities * Y_new[i,:])]
         
-        return None
+        # convert into numpy arrays
+        accuracy = np.array(accuracy)
+        predictions = np.array(predictions)
+        cross_entropy = np.array(cross_entropy)     
+        
+        return (predictions, accuracy, cross_entropy)
+
+    def predict_initializer(self, Y, X):
+        # safety-check: Does the TVD actually improve things? To check it does,
+        # we also compute predictions, accuracy and cross-entropy wrt initializer
+        
+        n,d = X.shape
+        
+        Y_new = np.zeros((n,self.num_classes))
+        Y_new[range(0,n), Y] = 1.0
+        
+        # create an empty list to store full predictions, accuracy (0-1) & CE
+        predictions = []
+        accuracy = []
+        cross_entropy = []
+        
+        self.NN_vanilla.set_parameters(self.initializer)
     
+        # loop over observations
+        for i in range(0,n):
+            
+            # compute the model probability vectors p_{\theta}(Y|X) w. fixed X
+            # print("X[i,:]", X[i,:].shape)
+            log_probabilities = self.NN_vanilla(torch.from_numpy(
+                X[i,:].reshape(1,d)).float())
+            # print(model_probabilities.type)
+            # print(model_probabilities.shape)
+            
+            # extract the probabilities and store them
+            log_model_probabilities = log_probabilities.data.detach().numpy().copy()
+            predictions += [log_model_probabilities]
+        
+            # compute accuracy (whether or not we made mistake in prediction)
+            biggest_probability_index = np.argmax(log_model_probabilities)
+            if biggest_probability_index == Y[i]:
+                accuracy += [1]
+            else:
+                accuracy += [0]
+            
+            # compute cross-entropy 
+            cross_entropy += [np.sum(log_model_probabilities * Y_new[i,:])]
+        
+        # convert into numpy arrays
+        accuracy = np.array(accuracy)
+        predictions = np.array(predictions)
+        cross_entropy = np.array(cross_entropy)     
+        
+        return (predictions, accuracy, cross_entropy)
     
 
 class PoissonLikelihood(Likelihood):
@@ -345,6 +456,28 @@ class PoissonLikelihood(Likelihood):
                 )
                 
         return Y_given_X_model
+    
+    def predict(self, Y,X, parameter_sample):
+        """Given a sample of (X,Y) as well as a sample of network parameters, 
+        compute p_{\theta}(Y|X) and compare against the actual values of Y"""
+        
+        B = parameter_sample.shape[0]
+        
+        
+        # Get the lambda(X, \theta_i) for all parameters \theta_i in sample.
+        # The i-th column corresponds to lambda(X, \theta_i).
+        lambdas = np.exp(np.matmul(X, np.transpose(parameter_sample)))
+        
+        # Get the predictive/test likelihoods
+        predictive_likelihoods = poisson.pmf(
+            np.repeat(Y, B).reshape(len(Y), B),lambdas)   
+        
+        # Get the MSE and MAE
+        SE = (np.repeat(Y, B).reshape(len(Y), B) - lambdas)**2
+        AE = np.abs(np.repeat(Y, B).reshape(len(Y), B) - lambdas)
+        
+        return (predictive_likelihoods, SE, AE)
+       
 
 class PoissonLikelihoodSqrt(Likelihood):
     """Use the link function lambda(x) = |abs(x)|^1/2 to make the gradients
