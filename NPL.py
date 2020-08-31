@@ -61,6 +61,8 @@ class NPL():
             
             # add +1 to the seed for the next sample
             seed = seed + 1
+            
+            
         
         # if we store a NN, then we get layer-wise np arrays (for each sample).
         # thus, we cannot numpy-force these

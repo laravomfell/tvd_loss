@@ -445,7 +445,7 @@ class ProbitLikelihood(Likelihood):
         
         MLE = sm.GLM(Y, X, family = sm.families.Binomial(
             sm.families.Binomial.links[1]),
-                      weight = weights).fit().params
+                      freq_weights = weights).fit().params
         # MLE = sm.Probit(Y,X).fit().params
 
         return MLE
@@ -488,7 +488,7 @@ class ProbitLikelihood(Likelihood):
         # predictions[indices] = 1
         
         # use predictions for accuracy computation
-        accuracy = np.abs(predictions - Y[:,np.newaxis])
+        accuracy = 1 - np.abs(predictions - Y[:,np.newaxis])
         
         # compute cross-entropy
         cross_entropy = -(log_probs * Y[:, np.newaxis] + 
@@ -505,8 +505,8 @@ class PoissonLikelihood(Likelihood):
         
     def initialize(self, Y, X, weights = None):
         # return MLE init
-        MLE = sm.GLM(Y, X, family = sm.families.Poisson(sm.families.Binomial.links[1]),
-                     weight = weights).fit().params      
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson(),
+                     freq_weights = weights).fit().params      
         return MLE
     
     def evaluate(self, params, Y_unique, X_unique):

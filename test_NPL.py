@@ -38,7 +38,7 @@ from data_simulators import EpsilonContam
 # plt.hist(Y)
 
 if False:
-    n = 2000
+    n = 200
     truth = np.array([0.5, -1.2, 1])
     X = np.array([np.ones(n),
                   np.random.rand(n),
@@ -72,7 +72,7 @@ if False:
     print("MSE MLE", np.mean(SE))
     print("MAE MLE", np.mean(AE))
 
-if True:
+if False:
     # n=3000
     # truth = np.array([0.01, -0.25, 0.25])
     # X = np.array([np.ones(n),
@@ -91,14 +91,20 @@ if True:
     Y = np.array(data)[:,-1] - 1
     Y = Y.astype(int)
     
+    Y_train, X_train = Y[100:],X[100:,:]
+    Y_test, X_test = Y[:100],X[:100,:]
     
     L = ProbitLikelihood()
     npl_sampler = NPL(L, optimizer = "BFGS")
-    B=100
-    npl_sampler.draw_samples(Y,X,B)
-    log_probs, accuracy, cross_entropy = npl_sampler.predict(Y,X)
-    log_probs_init, accuracy_init, cross_entropy_init = npl_sampler.predict_log_loss(Y,X)
+    B=1000
+    npl_sampler.draw_samples(Y_train, X_train,B)
+    log_probs, accuracy, cross_entropy = npl_sampler.predict(Y_test, X_test)
+    log_probs_init, accuracy_init, cross_entropy_init = npl_sampler.predict_log_loss(Y_test, X_test)
 
+    print("estimates TVD ", np.mean(accuracy))
+    print("estimates MLE ", np.mean(accuracy_init))
+    print("estimates TVD ", 1 - np.mean(np.abs(np.exp(log_probs) - Y_test[:,np.newaxis])))
+    print("estimates MLE ", 1 - np.mean(np.abs(np.exp(log_probs_init) - Y_test[:,np.newaxis])))
 
 if False:
     # test if the NN works (if both covariates are positive, Y=1. Y=0 otherwise)
