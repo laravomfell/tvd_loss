@@ -100,6 +100,7 @@ class SoftMaxNN(Likelihood):
         """From Y = [0,2,1] -> Y = [[1,0,0], [0,0,1], [0,1,0]]"""
         n = len(Y)
         self.Y_new = np.zeros((n,self.num_classes))
+        #DEBU:G THIS ONLY WORKS IF Y IS BINARY!
         self.Y_new[range(0,n), Y.copy()] = 1.0
         self.Y_new = torch.from_numpy(self.Y_new.copy()).float()
     

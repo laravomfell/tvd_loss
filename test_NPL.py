@@ -72,17 +72,24 @@ if False:
     print("MSE MLE", np.mean(SE))
     print("MAE MLE", np.mean(AE))
 
-if False:
-    n=3000
-    truth = np.array([0.01, -0.25, 0.25])
-    X = np.array([np.ones(n),
-                  np.random.normal(loc = 1.0, scale = 0.7,size = n),
-                  np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 3)
-    eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
-    raw = np.matmul(X, truth) + eps
+if True:
+    # n=3000
+    # truth = np.array([0.01, -0.25, 0.25])
+    # X = np.array([np.ones(n),
+    #               np.random.normal(loc = 1.0, scale = 0.7,size = n),
+    #               np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 3)
+    # eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
+    # raw = np.matmul(X, truth) + eps
     
-    Y = np.zeros(n, dtype = int)
-    Y[np.where(raw > 0.0)] = 1
+    # Y = np.zeros(n, dtype = int)
+    # Y[np.where(raw > 0.0)] = 1
+    
+    data_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/data/binary_classification/haberman.txt"
+    
+    data = pd.read_csv(data_path, sep=",", header=None)
+    X = np.array(data)[:,:-1]
+    Y = np.array(data)[:,-1] - 1
+    Y = Y.astype(int)
     
     
     L = ProbitLikelihood()
@@ -93,7 +100,7 @@ if False:
     log_probs_init, accuracy_init, cross_entropy_init = npl_sampler.predict_log_loss(Y,X)
 
 
-if True:
+if False:
     # test if the NN works (if both covariates are positive, Y=1. Y=0 otherwise)
     # X = np.array([[1.0, 2.0], 
     #               [2.0, 3.1], 
@@ -123,22 +130,29 @@ if True:
     #                    [-0.2, -2]])
     # Y_test = np.array([0,0,1,1])
     
-    n=300
-    truth = np.array([-0.25, 0.25])
-    X = np.array([
-                  np.random.normal(loc = 1.0, scale = 0.7,size = n),
-                  np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 2)
-    eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
-    raw = np.matmul(X, truth) + eps
+    # n=300
+    # truth = np.array([-0.25, 0.25])
+    # X = np.array([
+    #               np.random.normal(loc = 1.0, scale = 0.7,size = n),
+    #               np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 2)
+    # eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
+    # raw = np.matmul(X, truth) + eps
     
-    Y = np.zeros(n, dtype = int)
-    Y[np.where(raw > 0.0)] = 1 
+    # Y = np.zeros(n, dtype = int)
+    # Y[np.where(raw > 0.0)] = 1 
     
-    Y_test = Y[:100]
-    X_test = X[:100,:]
+    # Y_test = Y[:100]
+    # X_test = X[:100,:]
     
+    data_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/data/binary_classification/haberman.txt"
     
-    nn_lklh = SoftMaxNN(2, 100, 2, reset_initializer=True, 
+    data = pd.read_csv(data_path, sep=",", header=None)
+    X = np.array(data)[:,:-1]
+    Y = np.array(data)[:,-1] - 1
+    Y = Y.astype(int)
+    
+    d = X.shape[1]
+    nn_lklh = SoftMaxNN(d, 100, 2, reset_initializer=True, 
                 batch_size = 64,
                 epochs_TVD = 1000, epochs_vanilla = 1000) #network with 10 hidden layers
     
@@ -146,9 +160,10 @@ if True:
     d=2
     npl_sampler = NPL(nn_lklh, optimizer = "BFGS")
     B=100
-    npl_sampler.draw_samples(Y[100:],X[100:,:],B)
+    npl_sampler.draw_samples(Y,X,B)
     
     
+    Y_test, X_test = Y, X
     predictions, accuracy, cross_entropy = npl_sampler.predict(Y_test,X_test)
     predictions_init, accuracy_init, cross_entropy_init = npl_sampler.lklh.predict_initializer(Y_test,X_test)
 
