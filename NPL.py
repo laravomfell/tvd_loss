@@ -51,7 +51,7 @@ class NPL():
             
             # if we want, we can also initialize anew for each weight sample
             initializer = self.lklh.initialize(Y,X, weights)
-            mle = mle.append(initializer)
+            mle = mle + [initializer]
             
             # compute the minimum
             theta_j = self.minimize_TVD(initializer, weights, display_opt, j)
