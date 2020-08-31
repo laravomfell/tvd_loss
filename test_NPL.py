@@ -72,57 +72,71 @@ if False:
     print("MSE MLE", np.mean(SE))
     print("MAE MLE", np.mean(AE))
 
-
-n=300
-truth = np.array([0.01, -0.25, 0.25])
-X = np.array([np.ones(n),
-              np.random.normal(loc = 1.0, scale = 0.7,size = n),
-              np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 3)
-X = X / np.var(X)
-eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
-probs = norm.cdf(np.matmul(X, truth) + eps)
-
-Y = np.zeros(n, dtype = int)
-Y[np.where(probs > 0.5)] = 1
-
-
-L = ProbitLikelihood()
-npl_sampler = NPL(L, optimizer = "BFGS")
-B=100
-npl_sampler.draw_samples(Y,X,B)
-
-
 if False:
+    n=3000
+    truth = np.array([0.01, -0.25, 0.25])
+    X = np.array([np.ones(n),
+                  np.random.normal(loc = 1.0, scale = 0.7,size = n),
+                  np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 3)
+    eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
+    raw = np.matmul(X, truth) + eps
+    
+    Y = np.zeros(n, dtype = int)
+    Y[np.where(raw > 0.0)] = 1
+    
+    
+    L = ProbitLikelihood()
+    npl_sampler = NPL(L, optimizer = "BFGS")
+    B=100
+    npl_sampler.draw_samples(Y,X,B)
+    log_probs, accuracy, cross_entropy = npl_sampler.predict(Y,X)
+    log_probs_init, accuracy_init, cross_entropy_init = npl_sampler.predict_log_loss(Y,X)
+
+
+if True:
     # test if the NN works (if both covariates are positive, Y=1. Y=0 otherwise)
-    X = np.array([[1.0, 2.0], 
-                  [2.0, 3.1], 
-                  [5.0, 6.3],
-                  [5.3, 2.9],
-                  [6.7, 9.0],
-                  [-2.0, -1.0],
-                  [-2.0, -3.1], 
-                  [-5.0, -6.3],
-                  [-5.3, -2.9],
-                  [-6.7, -9.0]])
+    # X = np.array([[1.0, 2.0], 
+    #               [2.0, 3.1], 
+    #               [5.0, 6.3],
+    #               [5.3, 2.9],
+    #               [6.7, 9.0],
+    #               [-2.0, -1.0],
+    #               [-2.0, -3.1], 
+    #               [-5.0, -6.3],
+    #               [-5.3, -2.9],
+    #               [-6.7, -9.0]])
     
-    Y = np.array([0,
-                  0,
-                  0,
-                  0,
-                  0,
-                  1,
-                  1,
-                  1,
-                  1,
-                  1], dtype=int) 
+    # Y = np.array([0,
+    #               0,
+    #               0,
+    #               0,
+    #               0,
+    #               1,
+    #               1,
+    #               1,
+    #               1,
+    #               1], dtype=int) 
     
-    X_test = np.array([[10.0, 9.0],
-                       [0.5, 1.3], 
-                       [-5.4, -20.8], 
-                       [-0.2, -2]])
-    Y_test = np.array([0,0,1,1])
+    # X_test = np.array([[10.0, 9.0],
+    #                    [0.5, 1.3], 
+    #                    [-5.4, -20.8], 
+    #                    [-0.2, -2]])
+    # Y_test = np.array([0,0,1,1])
     
-    X = X + np.random.normal(0, 100, (10,2))   
+    n=300
+    truth = np.array([-0.25, 0.25])
+    X = np.array([
+                  np.random.normal(loc = 1.0, scale = 0.7,size = n),
+                  np.random.normal(loc= -1.0, scale=0.25, size = n)]).reshape(n, 2)
+    eps = np.random.normal(loc=0.0, scale = 1.0, size = n)
+    raw = np.matmul(X, truth) + eps
+    
+    Y = np.zeros(n, dtype = int)
+    Y[np.where(raw > 0.0)] = 1 
+    
+    Y_test = Y[:100]
+    X_test = X[:100,:]
+    
     
     nn_lklh = SoftMaxNN(2, 100, 2, reset_initializer=True, 
                 batch_size = 64,
@@ -132,7 +146,7 @@ if False:
     d=2
     npl_sampler = NPL(nn_lklh, optimizer = "BFGS")
     B=100
-    npl_sampler.draw_samples(Y,X,B)
+    npl_sampler.draw_samples(Y[100:],X[100:,:],B)
     
     
     predictions, accuracy, cross_entropy = npl_sampler.predict(Y_test,X_test)

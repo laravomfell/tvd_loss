@@ -62,13 +62,14 @@ class NPL():
             # add +1 to the seed for the next sample
             seed = seed + 1
         
-        self.mle = np.array(mle)
         # if we store a NN, then we get layer-wise np arrays (for each sample).
         # thus, we cannot numpy-force these
         if isinstance(self.lklh, SoftMaxNN):
             self.sample = sample
+            self.mle = mle
         else:
             self.sample = np.array(sample)
+            self.mle = np.array(mle)
     
     def predict(self, Y,X):
         return self.lklh.predict(Y,X,self.sample)

@@ -110,82 +110,86 @@ class SoftMaxNN(Likelihood):
         def make_batches(N_data, batch_size):
             return [ slice(i, min(i + batch_size, N_data)) 
                     for i in range(0, N_data, batch_size) ]
+
         
+        # for the future minimization of the TVD-networks, store the Y's
+        # in a different format
+        self.store_transformed_Y(Y)
         
-        if weights is None:
+        # make the batches
+        batches = make_batches(X.shape[0], self.batch_size)
+    
+        # create a stochastic gradient descent optimizer
+        optimizer = torch.optim.SGD(self.NN_vanilla.parameters(), 
+                                    lr=self.learning_rate, 
+                                    momentum=0.9)
+        # create a loss function
+        criterion = nn.NLLLoss()
+    
+        # run the main training loop
+        for epoch in range(self.epochs_vanilla):
             
-            # for the future minimization of the TVD-networks, store the Y's
-            # in a different format
-            self.store_transformed_Y(Y)
-            
-            # make the batches
-            batches = make_batches(X.shape[0], self.batch_size)
-        
-            # create a stochastic gradient descent optimizer
-            optimizer = torch.optim.SGD(self.NN_vanilla.parameters(), 
-                                        lr=self.learning_rate, 
-                                        momentum=0.9)
-            # create a loss function
-            criterion = nn.NLLLoss()
-        
-            # run the main training loop
-            for epoch in range(self.epochs_vanilla):
-                
-                # Shuffle the data
+            # Shuffle the data differently, depending on weights
+            if weights is None:
                 permutation = np.random.choice(range(X.shape[ 0 ]), 
-                                             X.shape[ 0 ], replace = False)
-                
+                                         X.shape[ 0 ], replace = False)
+            else:
+                permutation = np.random.choice(range(X.shape[ 0 ]), 
+                         X.shape[ 0 ], replace = True, 
+                         p = weights.flatten())
+            
    
-                for batch_slice in batches:
-                    
-                    # convert the slice into a range object (i.e., indices)
-                    batch_indices = range(*batch_slice.indices(X.shape[0]))
-                    
-                    # Sub-set the data with these indices
-                    X_batch = X[permutation[batch_indices],:]
-                    Y_batch = Y[permutation[batch_indices]]
-                    
-                    # convert to tensor
-                    X_batch = torch.from_numpy(X_batch).float()
-                    Y_batch = torch.from_numpy(Y_batch).long()
-                    
-                    X_batch, Y_batch = Variable(X_batch), Variable(Y_batch)
-                    
-                    # pytorch accumulates gradients, so make sure to reset to 0
-                    optimizer.zero_grad()
-                    
-                    # feed your X batch to the network, defining a function 
-                    # f: X -> Probabilities({1,2,... num_classes})
-                    net_out = self.NN_vanilla(X_batch)
-                    
-                    # determine the optimality criterion for the parameters of 
-                    # this function by specifying a loss 
-                    loss = criterion(net_out, Y_batch)
-                    
-                    # this computes the gradient (backward propagation)
-                    loss.backward()
-                    
-                    # take a gradient step
-                    optimizer.step()
-                    
-            print('Train Epoch: {} Loss: {:.6f}'.format(
-                        epoch, loss))
-            
-            
-            
-            # store the resulting parameters
-            self.initializer = self.get_network_parameters(self.NN_vanilla)
-            
-            # set parameters in TVD network to those optimal for vanilla NN
-            self.NN_TVD.set_parameters(self.initializer)
-            
-            return 0
-            
-            # if weights are NOT none, I need to perform SGD with 
-            # weighted re-sampling
-            
-            # NOTE: IT MAKES SENSE TO FIRST TRY IF WE CAN JUST INITIALIZE TO THE
-            #       SAME PARAMETERS (REGARDLESS OF WEIGHTS)...
+            for batch_slice in batches:
+                
+                # convert the slice into a range object (i.e., indices)
+                batch_indices = range(*batch_slice.indices(X.shape[0]))
+                
+                # Sub-set the data with these indices
+                X_batch = X[permutation[batch_indices],:]
+                Y_batch = Y[permutation[batch_indices]]
+                
+                # convert to tensor
+                X_batch = torch.from_numpy(X_batch).float()
+                Y_batch = torch.from_numpy(Y_batch).long()
+                
+                X_batch, Y_batch = Variable(X_batch), Variable(Y_batch)
+                
+                # pytorch accumulates gradients, so make sure to reset to 0
+                optimizer.zero_grad()
+                
+                # feed your X batch to the network, defining a function 
+                # f: X -> Probabilities({1,2,... num_classes})
+                net_out = self.NN_vanilla(X_batch)
+                
+                # determine the optimality criterion for the parameters of 
+                # this function by specifying a loss 
+                loss = criterion(net_out, Y_batch)
+                
+                # this computes the gradient (backward propagation)
+                loss.backward()
+                
+                # take a gradient step
+                optimizer.step()
+                
+        print('Train Epoch: {} Loss: {:.6f}'.format(
+                    epoch, loss))
+        
+        
+        
+        # store the resulting parameters
+        self.initializer = self.get_network_parameters(self.NN_vanilla)
+        
+        # set parameters in TVD network to those optimal for vanilla NN
+        self.NN_TVD.set_parameters(self.initializer)
+        
+        # ensure that we can store the initializers in the NPL object
+        return self.initializer
+        
+        # if weights are NOT none, I need to perform SGD with 
+        # weighted re-sampling
+        
+        # NOTE: IT MAKES SENSE TO FIRST TRY IF WE CAN JUST INITIALIZE TO THE
+        #       SAME PARAMETERS (REGARDLESS OF WEIGHTS)...
     
     def get_network_parameters(self, network):
         initializers = []
@@ -372,11 +376,11 @@ class SoftMaxNN(Likelihood):
                     accuracy += [0]
                 
                 # compute cross-entropy 
-                cross_entropy += [np.sum(log_model_probabilities * Y_new[i,:])]
+                cross_entropy += [-np.sum(log_model_probabilities * Y_new[i,:])]
         
         # convert into numpy arrays
         accuracy = np.array(accuracy)
-        predictions = np.array(predictions)
+        predictions = np.exp(np.array(predictions))
         cross_entropy = np.array(cross_entropy)     
         
         return (predictions, accuracy, cross_entropy)
@@ -419,11 +423,11 @@ class SoftMaxNN(Likelihood):
                 accuracy += [0]
             
             # compute cross-entropy 
-            cross_entropy += [np.sum(log_model_probabilities * Y_new[i,:])]
+            cross_entropy += [-np.sum(log_model_probabilities * Y_new[i,:])]
         
         # convert into numpy arrays
         accuracy = np.array(accuracy)
-        predictions = np.array(predictions)
+        predictions = np.exp(np.array(predictions))
         cross_entropy = np.array(cross_entropy)     
         
         return (predictions, accuracy, cross_entropy)
@@ -463,6 +467,34 @@ class ProbitLikelihood(Likelihood):
         Y_given_X_model[1,:] = probs
                 
         return Y_given_X_model
+    
+    def predict(self, Y,X, parameter_sample):
+        """Given a sample of (X,Y) as well as a sample of network parameters, 
+        compute p_{\theta}(Y|X) and compare against the actual values of Y"""
+        
+        # first comupute coefficients * X; shape (n,B)
+        n = X.shape[0]
+        B, _ = parameter_sample.shape
+        inner_products = np.matmul(X, np.transpose(parameter_sample))
+        
+        # Second, use the normal cdf to transform into [0,1]
+        log_probs = norm.logcdf(inner_products)
+        
+        # compute predictions
+        #print("[np.where(probs > 0.5)]", list(zip(np.where(mat > 0.5)[0], np.where(mat > 0.5)[1])).shape)
+        predictions = np.zeros((n,B))
+        tuples = np.where(np.exp(log_probs) > 0.5)
+        indices = np.array(list(zip(tuples[0], tuples[1])))
+        predictions[indices] = 1
+        
+        # use predictions for accuracy computation
+        accuracy = np.abs(predictions - Y[:,np.newaxis])
+        
+        # compute cross-entropy
+        cross_entropy = -(log_probs * Y[:, np.newaxis] + 
+                         np.logaddexp(0,-log_probs) * (1.0-Y[:, np.newaxis]))
+       
+        return (log_probs, accuracy, cross_entropy) 
     
 
 class PoissonLikelihood(Likelihood):
