@@ -86,7 +86,9 @@ if True:
     
     path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/data/binary_classification/"
     
-    data_name = "haberman" # haberman, fourclass, heart, mammographic_mass
+    data_name = "breast-cancer-wisconsin" 
+    # haberman, fourclass, heart, mammographic_mass, statlog-shuttle, 
+    # breast-cancer-wisconsin
  
     data_path =  path + data_name + ".txt"
     
@@ -98,7 +100,7 @@ if True:
     Y = data[:, -1]
     
 
-    split = 30
+    split = 70
     Y_train, X_train = Y[split:],X[split:,:]
     Y_test, X_test = Y[:split],X[:split,:]
     
@@ -113,6 +115,9 @@ if True:
     print("estimates MLE ", np.mean(accuracy_init))
     print("estimates TVD ", 1 - np.mean(np.abs(np.exp(log_probs) - Y_test[:,np.newaxis])))
     print("estimates MLE ", 1 - np.mean(np.abs(np.exp(log_probs_init) - Y_test[:,np.newaxis])))
+
+
+    
 
 if False:
     # test if the NN works (if both covariates are positive, Y=1. Y=0 otherwise)
