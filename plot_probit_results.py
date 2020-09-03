@@ -124,6 +124,62 @@ def single_histogram_comparison(base_path, fig, ax, data_name, criterion):
     return fig, ax
 
 
+def single_violinplot_comparison(base_path, fig, ax, data_name, criterion):
+    """Create a single histogram comparison between TVD and KLD on data set 
+    data_name with the given criterion"""
+    
+    # get the path at which relevant aggregates are stored
+    path_name_TVD = (base_path + "/" + data_name + "/" + 
+                     "aggregate" + criterion + "TVD" + ".txt")
+    path_name_KLD = (base_path + "/" + data_name + "/" + 
+                     "aggregate" + criterion + "KLD" + ".txt") 
+    
+    # read in the aggregate data
+    data_TVD = np.loadtxt(path_name_TVD).flatten()
+    data_KLD = np.loadtxt(path_name_KLD).flatten()
+    
+    # convert into logs if we process cross-entropy
+    if criterion == "_cross_entropy_":
+        data_TVD = np.log(-data_TVD)
+        data_KLD = np.log(-data_KLD)
+    
+    # exclude outliers
+    outlier_indices_TVD = data_TVD < 50
+    outlier_indices_KLD = data_KLD < 50
+    
+    # get the data and its maxima/minima
+    dats = [data_TVD[outlier_indices_TVD], data_KLD[outlier_indices_KLD]]  
+    
+    # axes labels
+    labels = ["TVD", "KLD"]
+    ax.get_xaxis().set_tick_params(direction='out')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks(np.arange(1, len(labels) + 1))
+    ax.set_xticklabels(labels)
+    ax.set_xlim(0.25, len(labels) + 0.75)
+    ax.set_xlabel('Sample name')
+    
+    # get violinplot
+    parts = ax.violinplot(
+        dats, showmeans=False, showmedians=True,
+        showextrema=False, widths = [1.25, 0.5])
+    
+    # set colors for the density 
+    colors = [color_TVD, color_KLD]
+    for pc, i in zip(parts['bodies'], range(0,2)):
+        pc.set_facecolor(colors[i])
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+        
+    # set colors for means, medians, ...
+    parts['cmedians'].set_edgecolor("black")
+    parts['cmedians'].set_linewidth(4)
+
+    
+    return fig, ax
+
+
+
 def single_boxplot_comparison(base_path, fig, ax, data_name, criterion):
     """Create a single boxplot comparison between TVD and KLD on data set 
     data_name with the given criterion"""
@@ -171,6 +227,37 @@ def single_whiskerplot_comparison(base_path, fig, ax, data_name, criterion):
     """Create a single whisker plot comparison between TVD and KLD on data set 
     data_name with the given criterion"""
     
+    # get the path at which relevant aggregates are stored
+    path_name_TVD = (base_path + "/" + data_name + "/" + 
+                     "aggregate" + criterion + "TVD" + ".txt")
+    path_name_KLD = (base_path + "/" + data_name + "/" + 
+                     "aggregate" + criterion + "KLD" + ".txt") 
+    
+    # read in the aggregate data
+    data_TVD = np.loadtxt(path_name_TVD).flatten()
+    data_KLD = np.loadtxt(path_name_KLD).flatten()
+    
+    # get the means and stddevs (for 'whiskers')
+    dats = [data_TVD, data_KLD]
+    means = np.array([np.mean(dat) for dat in dats])
+    std_devs = np.array([np.var(dat) for dat in dats])
+    
+    
+    """Plot all settings and put a vertical line through the baseline"""
+    colors = [color_TVD, color_KLD]
+    xpos = np.array([0.5,1.0])
+    ax.errorbar(y=means, x=xpos, yerr = std_devs, fmt = 'none', ecolor = colors)
+    ax.set_xlim(0, 1.5)
+    #for m,y, c in zip(means, ypos, colors):
+    ax.scatter(xpos,means, s=60, c=colors) #marker
+
+    ax.set_xticklabels(["TVD", "KLD"], fontsize = 10)
+    ax.set_xticks(xpos)
+    
+    #ax.axvline(x = means[baseline_index],linestyle = '--', color='grey')   
+    
+    """plot name of dataset on top"""
+    ax.set_title(data_name)
     
     return fig, ax
 
@@ -197,15 +284,15 @@ if True:
     # decide which data you want to run the experiments for
     # choices: haberman, fourclass, heart, mammographic_mass, statlog-shuttle, 
     #          breast-cancer-wisconsin
-    data_name = "haberman"
+    data_name = "mammographic_mass"
     
     # criterion types
     criteria = ["_log_probs_", "_accuracy_", "_probabilistic_accuracy_",
                    "_cross_entropy_"]
     
-    fig, ax = plt.subplots(1, 1, figsize = (10,10))
+    fig, ax = plt.subplots(1, 1, figsize = (5,10))
     
-    fig, ax = single_boxplot_comparison(base_path, fig, ax, data_name, criteria[1])
+    fig, ax = single_violinplot_comparison(base_path, fig, ax, data_name, criteria[2])
 
 
 if False:
