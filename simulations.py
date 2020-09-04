@@ -15,7 +15,8 @@ Rough structure:
 """
 
 import numpy as np
-
+import time
+import pickle
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
@@ -51,17 +52,33 @@ import data_simulators
 # plt.show()
 
 
-# SIMULATIONS
-stest = data_simulators.simulations(nsim = 500, B = 1000, 
-                                    lik = PoissonLikelihood)
-# right now we're only tracking param deviations and prediction error
-q_results = []
+X,Y = data_simulators.EpsilonContam(share = 0.2, contam_par = 0, n = 500,p=2, params = np.array([-0.1, 0.8]),
+                      continuous_x = True).contaminate()
+npl = NPL(PoissonLikelihood())
+npl.draw_samples(Y, X,B = 102, display_opt = False)
+npl.predict(Y, X)
 
-for i in range(0, 20, 5):
+#SIMULATIONS
+t0 = time.time()
+stest = data_simulators.simulations(nsim = 100, B = 1000, 
+                                    lik = PoissonLikelihood)
+
+for i in range(0, 20):
     print("on epsilon:", i)
     stest.data_setup(data_simulators.EpsilonContam, 
-                     n = 500, p = 2, params = np.array([0.1, 2]), 
-                     continuous_x = True, share = 0.2, contam_par = i)
+                  n = 500, p = 2, params = np.array([-0.1, 0.6]), 
+                  continuous_x = True, share = 0.2, contam_par = i)
     stest.simulate()
-    q_results = q_results + [stest.calc_quantiles()]
+    q = stest.calc_quantiles()
+    f = open('sim/sim_n500_nsim100_b1000_eps' + str(i) + '.obj', 'wb')
+    pickle.dump(q, f)
+    f.close()
     
+t1 = time.time()
+print((t1 - t0)/60)
+
+
+# fileObj = open('data.obj', 'rb')
+# exampleObj = pickle.load(fileObj)
+# fileObj.close()
+# print(exampleObj)
