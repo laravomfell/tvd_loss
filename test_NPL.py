@@ -72,7 +72,7 @@ if False:
     print("MSE MLE", np.mean(SE))
     print("MAE MLE", np.mean(AE))
 
-if False:
+if True:
     # n=3000
     # truth = np.array([0.01, -0.25, 0.25])
     # X = np.array([np.ones(n),
@@ -84,19 +84,29 @@ if False:
     # Y = np.zeros(n, dtype = int)
     # Y[np.where(raw > 0.0)] = 1
     
-    data_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/data/binary_classification/haberman.txt"
+    path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/data/binary_classification/"
     
-    data = pd.read_csv(data_path, sep=",", header=None)
-    X = np.array(data)[:,:-1]
-    Y = np.array(data)[:,-1] - 1
-    Y = Y.astype(int)
+    data_name = "breast-cancer-wisconsin" 
+    # haberman, fourclass, heart, mammographic_mass, statlog-shuttle, 
+    # breast-cancer-wisconsin
+ 
+    data_path =  path + data_name + ".txt"
     
-    Y_train, X_train = Y[100:],X[100:,:]
-    Y_test, X_test = Y[:100],X[:100,:]
+    data = pd.read_csv(data_path, sep = " ", header=None)
+    data = np.array(data, dtype=int)
+
+    
+    X = data[:,:-1]
+    Y = data[:, -1]
+    
+
+    split = 70
+    Y_train, X_train = Y[split:],X[split:,:]
+    Y_test, X_test = Y[:split],X[:split,:]
     
     L = ProbitLikelihood()
     npl_sampler = NPL(L, optimizer = "BFGS")
-    B=1000
+    B=100
     npl_sampler.draw_samples(Y_train, X_train,B)
     log_probs, accuracy, cross_entropy = npl_sampler.predict(Y_test, X_test)
     log_probs_init, accuracy_init, cross_entropy_init = npl_sampler.predict_log_loss(Y_test, X_test)
@@ -105,6 +115,9 @@ if False:
     print("estimates MLE ", np.mean(accuracy_init))
     print("estimates TVD ", 1 - np.mean(np.abs(np.exp(log_probs) - Y_test[:,np.newaxis])))
     print("estimates MLE ", 1 - np.mean(np.abs(np.exp(log_probs_init) - Y_test[:,np.newaxis])))
+
+
+    
 
 if False:
     # test if the NN works (if both covariates are positive, Y=1. Y=0 otherwise)

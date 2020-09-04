@@ -535,15 +535,15 @@ class PoissonLikelihood(Likelihood):
         lambdas = np.exp(np.matmul(X, np.transpose(parameter_sample)))
 
         
-        # Get the predictive/test likelihoods
-        predictive_likelihoods = poisson.pmf(
-            Y[:, None], lambdas)   
+        # Get the predictive/test log likelihoods
+        predictive_log_likelihoods = poisson.logpmf(
+            Y[:, None], lambdas)
         
         # Get the MSE and MAE
         SE = (Y[:, None] - lambdas)**2
         AE = np.abs(Y[:, None] - lambdas)
         
-        return (predictive_likelihoods, SE, AE)
+        return (predictive_log_likelihoods, SE, AE)
         
 
 
