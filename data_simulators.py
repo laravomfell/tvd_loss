@@ -8,10 +8,6 @@ Description:
 """
 
 import numpy as np
-from sklearn.model_selection import train_test_split
-from NPL import NPL
-from likelihood_functions import PoissonLikelihood
-import pdb
 
 class PoissonSim():
     """Simulates covariates and Poisson outcomes
@@ -169,88 +165,3 @@ class EpsilonContam(PoissonSim):
         return(self.X, self.Y)
 
 
-class simulations():
-    """this class first sets up a generic simulation environment. 
-    After filling the data_setup we are then ready to simulate based on some
-    simulation parameters"""
-    
-    def __init__(self, nsim, lik, B = 100, test_size = 0.2):
-        self.nsim = nsim
-        self.test_size = test_size
-        self.lik = lik
-        self.B = B
-        
-    def data_setup(self, contam_type, n, p, params, continuous_x, 
-                   share, contam_par):
-        
-        """take data setup information and assign to self"""
-        self.contam_type = contam_type
-        self.n = n
-        self.p = p
-        self.params = params
-        self.continuous_x = continuous_x
-        self.share = share        
-        self.contam_par = contam_par
-        
-    def parse_setup(self):
-        X,Y = self.contam_type(share = self.share, 
-                               contam_par = self.contam_par,
-                               n = self.n, p = self.p, params = self.params,
-                               continuous_x = self.continuous_x).contaminate()
-        return(X, Y)
-        
-        
-    def simulate(self):
-        # set up npl optimizer
-        L = self.lik()
-        npl = NPL(L, optimizer = "BFGS")
-    
-        # right now we're only tracking param deviations and prediction error
-        npl_dev = []
-        log_dev = []
-        npl_pred = []
-        log_pred = []
-        
-        for i in range(0, self.nsim):
-            X, Y = self.parse_setup()
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X, Y, test_size=self.test_size, random_state=42)
-            
-            # get npl and log score samples
-            npl.draw_samples(Y = Y_train, 
-                             X = X_train, 
-                             B = self.B,
-                             seed = 0, 
-                             display_opt = False)
-            
-            # track param deviation            
-            npl_dev.append(np.absolute(self.params - npl.sample))
-            log_dev.append(np.absolute(self.params - npl.mle))
-            # track out-of-sample prediction errors
-            x1, x2, x3 = npl.predict(Y_test, X_test)
-            npl_pred.append(x3)
-            
-            x1, x2, x3 = npl.predict_log_loss(Y_test, X_test)
-            
-            log_pred.append(x3)
-            
-            
-        # create dictionary of results
-         # I need to reshape things here
-        #pdb.set_trace()
-        keys = ['npl_dev', 'log_dev', 'npl_pred', 'log_pred']
-        result = dict(zip(keys,
-                          [np.concatenate(npl_dev, axis = 0), 
-                           np.concatenate(log_dev, axis = 0),
-                           np.concatenate(npl_pred).ravel(), 
-                           np.concatenate(log_pred).ravel()]))
-        self.result = result
-        
-    def calc_quantiles(self, q = [0.1, 0.5, 0.9]):
-        
-        def f(input):
-            return np.quantile(input, q = q, axis = 0).transpose()
-        
-        quantile_dict = {k: f(v) for k, v in self.result.items()}
-        
-        return(quantile_dict)
