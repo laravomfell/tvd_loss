@@ -9,6 +9,8 @@ Description: Likelihood function wrappers for use within NPL class
 """
 
 import numpy as np
+import pdb
+
 from scipy.stats import poisson, norm
 from scipy.optimize import minimize
 import statsmodels.api as sm
@@ -480,7 +482,7 @@ class ProbitLikelihood(Likelihood):
         log_probs = norm.logcdf(inner_products)
         
         # compute predictions
-        predictions = (np.exp(log_probs) > 0.5).astype('float')
+        #predictions = (np.exp(log_probs) > 0.5).astype('float')
         # #print("[np.where(probs > 0.5)]", list(zip(np.where(mat > 0.5)[0], np.where(mat > 0.5)[1])).shape)
         # predictions = np.zeros((n,B))
         # tuples = np.where(np.exp(log_probs) > 0.5)
@@ -488,13 +490,13 @@ class ProbitLikelihood(Likelihood):
         # predictions[indices] = 1
         
         # use predictions for accuracy computation
-        accuracy = 1 - np.abs(predictions - Y[:,np.newaxis])
+        ae = np.abs(np.exp(log_probs) - Y[:,np.newaxis])
         
         # compute cross-entropy
         cross_entropy = -(log_probs * Y[:, np.newaxis] + 
                          np.logaddexp(0,-log_probs) * (1.0-Y[:, np.newaxis]))
        
-        return (log_probs, accuracy, cross_entropy) 
+        return (log_probs, ae, cross_entropy) 
     
 
 class PoissonLikelihood(Likelihood):
@@ -528,20 +530,18 @@ class PoissonLikelihood(Likelihood):
         """Given a sample of (X,Y) as well as a sample of network parameters, 
         compute p_{\theta}(Y|X) and compare against the actual values of Y"""
         
-        B = parameter_sample.shape[0]
-        
-        
         # Get the lambda(X, \theta_i) for all parameters \theta_i in sample.
         # The i-th column corresponds to lambda(X, \theta_i).
         lambdas = np.exp(np.matmul(X, np.transpose(parameter_sample)))
+
         
         # Get the predictive/test likelihoods
         predictive_likelihoods = poisson.pmf(
-            np.repeat(Y, B).reshape(len(Y), B),lambdas)   
+            Y[:, None], lambdas)   
         
         # Get the MSE and MAE
-        SE = (np.repeat(Y, B).reshape(len(Y), B) - lambdas)**2
-        AE = np.abs(np.repeat(Y, B).reshape(len(Y), B) - lambdas)
+        SE = (Y[:, None] - lambdas)**2
+        AE = np.abs(Y[:, None] - lambdas)
         
         return (predictive_likelihoods, SE, AE)
         
