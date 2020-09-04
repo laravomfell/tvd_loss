@@ -47,7 +47,7 @@ class PoissonSim():
         if self.p > 1 and self.continuous_x:
             self.X = np.array([
                 np.ones(self.n),
-                np.random.normal(loc = 0.0, 
+                np.random.normal(loc = 2.0, 
                                  scale = 1.0, 
                                  size = self.n * (self.p-1))]).transpose()
         
@@ -223,17 +223,16 @@ class simulations():
                              seed = 0, 
                              display_opt = False)
             
-            # track param deviation
+            # track param deviation            
             npl_dev.append(np.absolute(self.params - npl.sample))
             log_dev.append(np.absolute(self.params - npl.mle))
             # track out-of-sample prediction errors
-            # replace with prediction function later
-            npl_pred.append(
-                Y_test[:, None] - np.exp(np.matmul(X_test, 
-                                                   npl.sample.transpose())))
-            log_pred.append(
-                Y_test[:, None] - np.exp(np.matmul(X_test,
-                                                   npl.mle.transpose())))
+            x1, x2, x3 = npl.predict(Y_test, X_test)
+            npl_pred.append(x3)
+            
+            x1, x2, x3 = npl.predict_log_loss(Y_test, X_test)
+            
+            log_pred.append(x3)
             
             
         # create dictionary of results
