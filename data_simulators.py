@@ -8,10 +8,7 @@ Description:
 """
 
 import numpy as np
-from sklearn.model_selection import train_test_split
-from NPL import NPL
-from likelihood_functions import PoissonLikelihood
-import pdb
+from scipy.special import logit, expit
 
 class PoissonSim():
     """Simulates covariates and Poisson outcomes
@@ -47,7 +44,7 @@ class PoissonSim():
         if self.p > 1 and self.continuous_x:
             self.X = np.array([
                 np.ones(self.n),
-                np.random.normal(loc = 0.0, 
+                np.random.normal(loc = 2.0, 
                                  scale = 1.0, 
                                  size = self.n * (self.p-1))]).transpose()
         
@@ -135,9 +132,9 @@ class ZeroInflContam(PoissonSim):
         n_contam = int(np.floor(self.n * self.share))
         # multiply Y at 0:n_contam with vector of (0,1) to inflate
         # draw 0's with probability prob0
-        zero_part = np.concatenate((np.random.random(n_contam) > self.contam_par,
+        zero_part = np.concatenate((np.random.binomial(1, 1 - self.contam_par, size = n_contam),
                                     np.ones(self.n - n_contam)))
-        return(self.X, self.Y * zero_part)
+        return(self.X, (self.Y * zero_part).astype('int'))
         
         
         
@@ -168,90 +165,56 @@ class EpsilonContam(PoissonSim):
         self.Y[0:n_contam] += self.contam_par
         return(self.X, self.Y)
 
-
-class simulations():
-    """this class first sets up a generic simulation environment. 
-    After filling the data_setup we are then ready to simulate based on some
-    simulation parameters"""
-    
-    def __init__(self, nsim, lik, B = 100, test_size = 0.2):
-        self.nsim = nsim
-        self.test_size = test_size
-        self.lik = lik
-        self.B = B
-        
-    def data_setup(self, contam_type, n, p, params, continuous_x, 
-                   share, contam_par):
-        
-        """take data setup information and assign to self"""
-        self.contam_type = contam_type
+class BinomSim():
+    def __init__(self, n, p, params, u_bound, continuous_x = True):
+        assert p == params.shape[0], "params need to be of shape p"
+        assert type(continuous_x) == bool, "need boolean flag for type of X"
         self.n = n
         self.p = p
         self.params = params
+        self.u_bound = u_bound
         self.continuous_x = continuous_x
-        self.share = share        
-        self.contam_par = contam_par
-        
-    def parse_setup(self):
-        X,Y = self.contam_type(share = self.share, 
-                               contam_par = self.contam_par,
-                               n = self.n, p = self.p, params = self.params,
-                               continuous_x = self.continuous_x).contaminate()
-        return(X, Y)
-        
-        
-    def simulate(self):
-        # set up npl optimizer
-        L = self.lik()
-        npl = NPL(L, optimizer = "BFGS")
     
-        # right now we're only tracking param deviations and prediction error
-        npl_dev = []
-        log_dev = []
-        npl_pred = []
-        log_pred = []
+        if continuous_x and p == 1: 
+            print("""Returning an intercept-only model despite continuous_x = True""")
         
-        for i in range(0, self.nsim):
-            X, Y = self.parse_setup()
-            X_train, X_test, Y_train, Y_test = train_test_split(
-                X, Y, test_size=self.test_size, random_state=42)
-            
-            # get npl and log score samples
-            npl.draw_samples(Y = Y_train, 
-                             X = X_train, 
-                             B = self.B,
-                             seed = 0, 
-                             display_opt = False)
-            
-            # track param deviation
-            npl_dev.append(np.absolute(self.params - npl.sample))
-            log_dev.append(np.absolute(self.params - npl.mle))
-            # track out-of-sample prediction errors
-            # replace with prediction function later
-            npl_pred.append(
-                Y_test[:, None] - np.exp(np.matmul(X_test, 
-                                                   npl.sample.transpose())))
-            log_pred.append(
-                Y_test[:, None] - np.exp(np.matmul(X_test,
-                                                   npl.mle.transpose())))
-            
-            
-        # create dictionary of results
-         # I need to reshape things here
-        #pdb.set_trace()
-        keys = ['npl_dev', 'log_dev', 'npl_pred', 'log_pred']
-        result = dict(zip(keys,
-                          [np.concatenate(npl_dev, axis = 0), 
-                           np.concatenate(log_dev, axis = 0),
-                           np.concatenate(npl_pred).ravel(), 
-                           np.concatenate(log_pred).ravel()]))
-        self.result = result
+    def generate_X(self):
+        if self.p == 1:
+            self.X = np.ones(self.n)
         
-    def calc_quantiles(self, q = [0.1, 0.5, 0.9]):
+        if self.p > 1 and self.continuous_x:
+            self.X = np.array([
+                np.ones(self.n),
+                np.random.normal(loc = 0.0, 
+                                 scale = 1.0, 
+                                 size = self.n * (self.p-1))]).transpose()
         
-        def f(input):
-            return np.quantile(input, q = q, axis = 0).transpose()
+        if self.p > 1 and self.continuous_x is False:
+            self.X = np.random.choice(4, self.n * self.p).reshape(self.n, self.p)
         
-        quantile_dict = {k: f(v) for k, v in self.result.items()}
+    def run(self):
+        # generate covariates
+        self.generate_X()
+        # generate y
+        self.Y = np.random.binomial(self.u_bound,
+                                    expit(np.matmul(self.X, self.params)),
+                                    self.n)
         
-        return(quantile_dict)
+        return (self.X, self.Y)
+    
+class ZeroInflBinom(BinomSim):
+    def __init__(self, share, contam_par, **kw):
+        assert 0 <= share <= 1, "share of data to contaminate needs to be [0,1]"
+        self.share = share
+        self.contam_par = contam_par
+        super(ZeroInflBinom, self).__init__(**kw)
+    
+    def contaminate(self):
+        self.X, self.Y = self.run()
+        
+        # number of observations to contaminate
+        n_contam = int(np.floor(self.n * self.share))
+        # draw zero-part
+        zero_part = np.concatenate((np.random.binomial(1, 1 - self.contam_par, n_contam),
+                                    np.ones(self.n - n_contam, dtype = int)))
+        return(self.X, (self.Y * zero_part))

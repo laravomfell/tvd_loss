@@ -9,9 +9,13 @@ Description: Likelihood function wrappers for use within NPL class
 """
 
 import numpy as np
-from scipy.stats import poisson, norm
+import pdb
+
+from scipy.stats import poisson, norm, binom
 from scipy.optimize import minimize
 import statsmodels.api as sm
+
+from scipy.special import logit, expit
 
 import torch
 from torch import nn
@@ -450,6 +454,55 @@ class SoftMaxNN(Likelihood):
         
         return (predictions, accuracy, cross_entropy)
 
+
+class BinomialLikelihood(Likelihood):
+    
+    def __init__(self, name = "Binomial"):
+        self.name = name
+        
+    def initialize(self, Y, X, weights = None):
+        
+        # return mle initialization
+        MLE = sm.GLM(np.vstack((Y, max(Y) - Y)).T, X, family = sm.families.Binomial(
+            sm.families.Binomial.links[0]),
+            freq_weights = weights).fit().params
+        
+        print("MLE:", MLE)
+        return MLE
+    
+    def evaluate(self, params, Y_unique, X_unique):
+        # calculate Xb
+        inner_products = np.matmul(X_unique, params)
+        
+        # next, use inverse logit link to transform into [0,1]
+        probs = expit(inner_products)
+
+        # then use standard binomial pmf to evaluate likelihood
+        n_X_unique = X_unique.shape[0]
+        n_Y_unique = Y_unique.shape[0]
+        
+        Y_given_X_model = binom.pmf(
+            np.repeat(Y_unique, n_X_unique).reshape(n_Y_unique, n_X_unique),
+            max(Y_unique),
+            np.tile(probs, n_Y_unique).reshape(n_Y_unique, n_X_unique))
+        
+        return Y_given_X_model
+    
+    def predict(self, Y, X, parameter_sample):
+        
+        probs = expit(np.matmul(X, np.transpose(parameter_sample)))
+        
+        # get predictive log lik
+        predictive_log_likelihoods = binom.logpmf(
+            Y[:, None], max(Y), probs)
+        
+        # calculate squared and absolute error
+        SE = (Y[:, None] - max(Y) * probs)**2
+        AE = np.abs(Y[:, None] - max(Y) * probs)
+        
+        return predictive_log_likelihoods, SE, AE
+    
+    
 class ProbitLikelihood(Likelihood):
 
     def __init__(self, name="Probit"):
@@ -510,7 +563,7 @@ class ProbitLikelihood(Likelihood):
         log_probs = norm.logcdf(inner_products)
         
         # compute predictions
-        predictions = (np.exp(log_probs) > 0.5).astype('float')
+        #predictions = (np.exp(log_probs) > 0.5).astype('float')
         # #print("[np.where(probs > 0.5)]", list(zip(np.where(mat > 0.5)[0], np.where(mat > 0.5)[1])).shape)
         # predictions = np.zeros((n,B))
         # tuples = np.where(np.exp(log_probs) > 0.5)
@@ -518,13 +571,13 @@ class ProbitLikelihood(Likelihood):
         # predictions[indices] = 1
         
         # use predictions for accuracy computation
-        accuracy = 1 - np.abs(predictions - Y[:,np.newaxis])
+        ae = np.abs(np.exp(log_probs) - Y[:,np.newaxis])
         
         # compute cross-entropy
         cross_entropy = -(log_probs * Y[:, np.newaxis] + 
                          np.logaddexp(0,-log_probs) * (1.0-Y[:, np.newaxis]))
        
-        return (log_probs, accuracy, cross_entropy) 
+        return (log_probs, ae, cross_entropy) 
     
 
 class PoissonLikelihood(Likelihood):
@@ -558,20 +611,18 @@ class PoissonLikelihood(Likelihood):
         """Given a sample of (X,Y) as well as a sample of network parameters, 
         compute p_{\theta}(Y|X) and compare against the actual values of Y"""
         
-        B = parameter_sample.shape[0]
-        
-        
         # Get the lambda(X, \theta_i) for all parameters \theta_i in sample.
         # The i-th column corresponds to lambda(X, \theta_i).
         lambdas = np.exp(np.matmul(X, np.transpose(parameter_sample)))
+
         
-        # Get the predictive/test likelihoods
+        # Get the predictive/test log likelihoods
         predictive_log_likelihoods = poisson.logpmf(
-            np.repeat(Y, B).reshape(len(Y), B),lambdas)   
+            Y[:, None], lambdas)
         
         # Get the MSE and MAE
-        SE = (np.repeat(Y, B).reshape(len(Y), B) - lambdas)**2
-        AE = np.abs(np.repeat(Y, B).reshape(len(Y), B) - lambdas)
+        SE = (Y[:, None] - lambdas)**2
+        AE = np.abs(Y[:, None] - lambdas)
         
         return (predictive_log_likelihoods, SE, AE)
         
