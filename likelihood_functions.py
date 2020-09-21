@@ -79,8 +79,8 @@ class NN_softmax(NN_logsoftmax):
 class SoftMaxNN(Likelihood):
     """Get a single-layer softmax-final-layer neural network to classify data"""
     
-    def __init__(self, d, layer_size, num_classes, reset_initializer,
-                 batch_size = 64, epochs_vanilla = 10, epochs_TVD = 100, 
+    def __init__(self, d, layer_size, num_classes, reset_initializer=True,
+                 batch_size = 64, epochs_vanilla = 100, epochs_TVD = 100, 
                  learning_rate = 0.01):
         
         self.NN_vanilla = NN_logsoftmax(d,layer_size, num_classes)
@@ -94,6 +94,10 @@ class SoftMaxNN(Likelihood):
         self.epochs_vanilla = epochs_vanilla
         self.epochs_TVD = epochs_TVD
         self.learning_rate = learning_rate
+        self.print_after_each_epoch = True
+    
+    def deactivate_printing(self):
+        self.print_after_each_epoch = False
         
     
     def store_transformed_Y(self, Y):
@@ -171,9 +175,10 @@ class SoftMaxNN(Likelihood):
                 
                 # take a gradient step
                 optimizer.step()
-                
-        print('Train Epoch: {} Loss: {:.6f}'.format(
-                    epoch, loss))
+        
+        if self.print_after_each_epoch:
+            print('Train Epoch: {} Loss: {:.6f}'.format(
+                        epoch, loss))
         
         
         
@@ -323,9 +328,10 @@ class SoftMaxNN(Likelihood):
             
             # take a gradient step
             optimizer.step()
-                
-        print('Train Epoch: {} Loss: {:.6f}'.format(
-                    epoch, loss))
+        
+        if self.print_after_each_epoch:
+            print('Train Epoch: {} Loss: {:.6f}'.format(
+                        epoch, loss))
         
         # extract the parameter value at the optimum and return it
         return self.get_network_parameters(self.NN_TVD)
@@ -336,6 +342,7 @@ class SoftMaxNN(Likelihood):
         compute p_{\theta}(Y|X) and compare against the actual values of Y"""
         
         n,d = X.shape
+        B = len(parameter_sample)
         
         Y_new = np.zeros((n,self.num_classes))
         Y_new[range(0,n), Y] = 1.0
@@ -344,9 +351,10 @@ class SoftMaxNN(Likelihood):
         predictions = []
         accuracy = []
         cross_entropy = []
+        # log_probs = np.zeros((n,B))
         
         # loop over parameter samples; each theta will be a list
-        for theta in parameter_sample:
+        for theta,j in zip(parameter_sample, range(0,B)):
             
             # set the parameter values of the NN to theta
             # NOTE: We use the vanilla NN because it returns the log-softmax
@@ -364,10 +372,19 @@ class SoftMaxNN(Likelihood):
                     X[i,:].reshape(1,d)).float())
                 # print(model_probabilities.type)
                 # print(model_probabilities.shape)
+                # print("log probs", log_probabilities)
                 
                 # extract the probabilities and store them
-                log_model_probabilities = log_probabilities.data.detach().numpy().copy()
-                predictions += [log_model_probabilities]
+                log_model_probabilities = log_probabilities.data.detach().numpy().copy().flatten()
+                # log_probs[:,i] = log_model_probabilities
+                
+                # ßprint("log probs", log_model_probabilities)
+                # log_model_probabilities is 2d array
+                # print("values", np.exp(log_model_probabilities))
+                # print("shape", log_model_probabilities.shape)
+                
+                # probability of Y = 1
+                predictions += [log_model_probabilities[1]]
             
                 # compute accuracy (whether or not we made mistake in prediction)
                 biggest_probability_index = np.argmax(log_model_probabilities)
@@ -381,7 +398,7 @@ class SoftMaxNN(Likelihood):
         
         # convert into numpy arrays
         accuracy = np.array(accuracy)
-        predictions = np.exp(np.array(predictions))
+        predictions = np.array(predictions)
         cross_entropy = np.array(cross_entropy)     
         
         return (predictions, accuracy, cross_entropy)
@@ -437,6 +454,8 @@ class ProbitLikelihood(Likelihood):
 
     def __init__(self, name="Probit"):
         self.name = name
+        # self.X = None
+        # self.Y = None
         
     def initialize(self, Y, X, weights = None):
         # return MLE init
@@ -447,8 +466,19 @@ class ProbitLikelihood(Likelihood):
             sm.families.Binomial.links[1]),
                       freq_weights = weights).fit().params
         # MLE = sm.Probit(Y,X).fit().params
+        
+        # we may want to use a different data set to initialize TVD
+        # if ((self.X is not None) and (self.Y is not None)):
+        #     X, Y = self.X, self.Y
+        #     self.initializer = sm.GLM(Y, X, family = sm.families.Binomial(
+        #                 sm.families.Binomial.links[1]),
+        #                   freq_weights = weights).fit().params
 
         return MLE
+    
+    # def set_initializer_data(self, Y, X):
+    #     self.X = X
+    #     self.Y = Y
     
     def evaluate(self, params, Y_unique, X_unique):
         
