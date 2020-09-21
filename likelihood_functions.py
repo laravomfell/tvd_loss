@@ -11,9 +11,11 @@ Description: Likelihood function wrappers for use within NPL class
 import numpy as np
 import pdb
 
-from scipy.stats import poisson, norm
+from scipy.stats import poisson, norm, binom
 from scipy.optimize import minimize
 import statsmodels.api as sm
+
+from scipy.special import logit, expit
 
 import torch
 from torch import nn
@@ -435,6 +437,55 @@ class SoftMaxNN(Likelihood):
         
         return (predictions, accuracy, cross_entropy)
 
+
+class BinomialLikelihood(Likelihood):
+    
+    def __init__(self, name = "Binomial"):
+        self.name = name
+        
+    def initialize(self, Y, X, weights = None):
+        
+        # return mle initialization
+        MLE = sm.GLM(np.vstack((Y, max(Y) - Y)).T, X, family = sm.families.Binomial(
+            sm.families.Binomial.links[0]),
+            freq_weights = weights).fit().params
+        
+        print("MLE:", MLE)
+        return MLE
+    
+    def evaluate(self, params, Y_unique, X_unique):
+        # calculate Xb
+        inner_products = np.matmul(X_unique, params)
+        
+        # next, use inverse logit link to transform into [0,1]
+        probs = expit(inner_products)
+
+        # then use standard binomial pmf to evaluate likelihood
+        n_X_unique = X_unique.shape[0]
+        n_Y_unique = Y_unique.shape[0]
+        
+        Y_given_X_model = binom.pmf(
+            np.repeat(Y_unique, n_X_unique).reshape(n_Y_unique, n_X_unique),
+            max(Y_unique),
+            np.tile(probs, n_Y_unique).reshape(n_Y_unique, n_X_unique))
+        
+        return Y_given_X_model
+    
+    def predict(self, Y, X, parameter_sample):
+        
+        probs = expit(np.matmul(X, np.transpose(parameter_sample)))
+        
+        # get predictive log lik
+        predictive_log_likelihoods = binom.logpmf(
+            Y[:, None], max(Y), probs)
+        
+        # calculate squared and absolute error
+        SE = (Y[:, None] - max(Y) * probs)**2
+        AE = np.abs(Y[:, None] - max(Y) * probs)
+        
+        return predictive_log_likelihoods, SE, AE
+    
+    
 class ProbitLikelihood(Likelihood):
 
     def __init__(self, name="Probit"):
