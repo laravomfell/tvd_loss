@@ -8,6 +8,7 @@ Description:
 """
 
 import numpy as np
+from scipy.special import logit, expit
 
 class PoissonSim():
     """Simulates covariates and Poisson outcomes
@@ -131,9 +132,9 @@ class ZeroInflContam(PoissonSim):
         n_contam = int(np.floor(self.n * self.share))
         # multiply Y at 0:n_contam with vector of (0,1) to inflate
         # draw 0's with probability prob0
-        zero_part = np.concatenate((np.random.random(n_contam) > self.contam_par,
+        zero_part = np.concatenate((np.random.binomial(1, 1 - self.contam_par, size = n_contam),
                                     np.ones(self.n - n_contam)))
-        return(self.X, self.Y * zero_part)
+        return(self.X, (self.Y * zero_part).astype('int'))
         
         
         
@@ -164,4 +165,56 @@ class EpsilonContam(PoissonSim):
         self.Y[0:n_contam] += self.contam_par
         return(self.X, self.Y)
 
-
+class BinomSim():
+    def __init__(self, n, p, params, u_bound, continuous_x = True):
+        assert p == params.shape[0], "params need to be of shape p"
+        assert type(continuous_x) == bool, "need boolean flag for type of X"
+        self.n = n
+        self.p = p
+        self.params = params
+        self.u_bound = u_bound
+        self.continuous_x = continuous_x
+    
+        if continuous_x and p == 1: 
+            print("""Returning an intercept-only model despite continuous_x = True""")
+        
+    def generate_X(self):
+        if self.p == 1:
+            self.X = np.ones(self.n)
+        
+        if self.p > 1 and self.continuous_x:
+            self.X = np.array([
+                np.ones(self.n),
+                np.random.normal(loc = 0.0, 
+                                 scale = 1.0, 
+                                 size = self.n * (self.p-1))]).transpose()
+        
+        if self.p > 1 and self.continuous_x is False:
+            self.X = np.random.choice(4, self.n * self.p).reshape(self.n, self.p)
+        
+    def run(self):
+        # generate covariates
+        self.generate_X()
+        # generate y
+        self.Y = np.random.binomial(self.u_bound,
+                                    expit(np.matmul(self.X, self.params)),
+                                    self.n)
+        
+        return (self.X, self.Y)
+    
+class ZeroInflBinom(BinomSim):
+    def __init__(self, share, contam_par, **kw):
+        assert 0 <= share <= 1, "share of data to contaminate needs to be [0,1]"
+        self.share = share
+        self.contam_par = contam_par
+        super(ZeroInflBinom, self).__init__(**kw)
+    
+    def contaminate(self):
+        self.X, self.Y = self.run()
+        
+        # number of observations to contaminate
+        n_contam = int(np.floor(self.n * self.share))
+        # draw zero-part
+        zero_part = np.concatenate((np.random.binomial(1, 1 - self.contam_par, n_contam),
+                                    np.ones(self.n - n_contam, dtype = int)))
+        return(self.X, (self.Y * zero_part))
