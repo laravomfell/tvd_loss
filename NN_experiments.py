@@ -22,8 +22,6 @@ save_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/experiments/NN"
 # choices: ionos, madelon, pima, banknote_authentication, diabetic, ilpd, rice
 data_name = "rice"
 
-# ran: haberman, fourclass, heart, mammographic_mass,statlog-shuttle, breast-cancer-wisconsin
-
 # get the data
 X, Y = get_probit_data(data_path, data_name)
 

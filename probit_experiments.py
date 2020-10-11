@@ -33,30 +33,7 @@ train_proportion = 0.9
 L = ProbitLikelihood()
 B = 100
 
-
-# whether or not you want to inject contamination
-contamination = True
-
-# size of contamination (in std-deviation units)
-contamination_factor = 5.0 
-
-# proportion of training observations we contaminate
-contamination_proportion = 0.05
-
-if contamination:
-    
-    # add contamination size to save path
-    save_path_contam_ = save_path_contam + "_factor=" + str(int(contamination_factor)) + "_prop=" + str(contamination_proportion)
-    
-    # run the experiments
-    get_test_performance(X, Y, num_splits, train_proportion, L, B, 
-                                 save_path_contam_, data_name,
-                                 contamination_factor, contamination_proportion, True)
-
-
-if not contamination:
-    
-    # run the experiments
-    get_test_performance(X, Y, num_splits, train_proportion, L, B, 
-                                 save_path, data_name)
+# run the experiments
+get_test_performance(X, Y, num_splits, train_proportion, L, B, 
+                             save_path, data_name)
 

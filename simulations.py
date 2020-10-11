@@ -62,10 +62,31 @@ from NPL import NPL
 # t1 = time.time()
 # print((t1 - t0)/60)
 
-X, Y = ZeroInflBinom(n = 250, p = 2, params = np.array([-0.5, 0.6]), u_bound = 5,
-                      continuous_x=True, share = 0.3, contam_par = 1).contaminate()
+if False:
+    X, Y = ZeroInflBinom(n = 250, p = 2, params = np.array([-0.5, 0.6]), u_bound = 5,
+                          continuous_x=True, share = 0.3, contam_par = 1).contaminate()
+    
+    npl_b = NPL(BinomialLikelihood())
+    npl_b.draw_samples(Y,X, 500)
 
-npl_b = NPL(BinomialLikelihood())
+
+
+from scipy.stats import poisson
+lambda_ = np.log(3)
+n = 100
+X1 =  np.ones(n)
+X2 = np.floor(np.random.uniform(0,3,n)+1)
+X = np.vstack((X1, X2)).T
+# X = np.ones(200).reshape(100, 2)
+lambs = np.exp(np.matmul(X, np.array([.8, .5])))
+
+Y = poisson.rvs(lambs).flatten()
+
+Y[:30] = 0
+
+
+
+npl_b = NPL(PoissonLikelihood())
 npl_b.draw_samples(Y,X, 500)
 
 

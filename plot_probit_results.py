@@ -18,9 +18,12 @@ darkblue = '#0072B2'
 green = '#009E73'
 orange = "#D55E00"
 
-color_TVD = darkblue
-color_KLD = green
-median_color = orange
+TVD_col =  '#009E73'
+KLD_col =  '#56B4E9'
+
+color_TVD = TVD_col
+color_KLD = KLD_col
+median_color = 'k'
 linewidth_boxplot = 2
 
 
@@ -212,9 +215,25 @@ def single_boxplot_comparison(base_path, fig, ax, data_name, criterion):
     #     data_TVD = np.log(-data_TVD)
     #     data_KLD = np.log(-data_KLD)
     
+    #      btvd = ax.boxplot(tvd, positions = np.array(range(len(tvd))) * 3 - 0.8,
+    #                            sym = '', widths = 0.6, patch_artist = True,
+    #                            boxprops = dict(facecolor = '#009E73'),
+    #                            medianprops = dict(color = 'black'))
+
+    # Color scheme:
+    # TVD '#009E73'
+    # KLD '#56B4E9'
+    # Stan '#E69F00'
+    
+    #      btvd = ax.boxplot(tvd, positions = np.array(range(len(tvd))) * 3 - 0.8,
+    #                            sym = '', widths = 0.6, patch_artist = True,
+    #                            boxprops = dict(facecolor = '#009E73'),
+    #                            medianprops = dict(color = 'black'))
+
+    
     # group and plot the data
     dats = [data_TVD, data_KLD]
-    bp = ax.boxplot(dats, notch = True, showfliers = False)
+    bp = ax.boxplot(dats, notch = False, showfliers = False, widths = 0.6)
     
     # set colors for boxplot outlines
     cols = [color_TVD, color_KLD]
@@ -250,6 +269,18 @@ def single_boxplot_grouped_comparison(base_path, fig, ax, data_name, criterion):
     # read in the aggregate data
     data_TVD = np.loadtxt(path_name_TVD)
     data_KLD = np.loadtxt(path_name_KLD)
+    
+    
+     # Color scheme:
+    # TVD '#009E73'
+    # KLD '#56B4E9'
+    # Stan '#E69F00'
+    
+    #      btvd = ax.boxplot(tvd, positions = np.array(range(len(tvd))) * 3 - 0.8,
+    #                            sym = '', widths = 0.6, patch_artist = True,
+    #                            boxprops = dict(facecolor = '#009E73'),
+    #                            medianprops = dict(color = 'black'))
+
     
     # if the data was stored as matrix
     if len(data_TVD.shape) > 1:
@@ -289,9 +320,10 @@ def single_boxplot_grouped_comparison(base_path, fig, ax, data_name, criterion):
         dats = [np.log(-means_TVD+max_), np.log(-means_KLD+max_)]
         
     # group and plot the data
-    medianprops = dict(linestyle='-', linewidth=linewidth_boxplot, color='black')
-    bp = ax.boxplot(dats, notch = True, showfliers = False, patch_artist=True,
-                    medianprops = medianprops, widths=(0.8,0.8))
+    medianprops = dict(linestyle='-', color='black')
+    bp = ax.boxplot(dats, notch = False, showfliers = False, patch_artist=True,
+                    medianprops = medianprops, widths=0.6) 
+    # (0.8, 0.8)
     
     # set colors for boxplot outlines
     cols = [color_TVD, color_KLD]
@@ -300,15 +332,15 @@ def single_boxplot_grouped_comparison(base_path, fig, ax, data_name, criterion):
         box.set( color=cols[i], linewidth=linewidth_boxplot)
         whisker.set( color=cols[i], linewidth=linewidth_boxplot)
         cap.set( color=cols[i], linewidth=linewidth_boxplot)
-        median.set(color = "black",linewidth=linewidth_boxplot)
+        median.set(color = "black")
         flier.set(False)
     
     for patch, color in zip(bp['boxes'], cols):
         patch.set_facecolor(color)
         
     # set x-axis label
-    ax.set_xticklabels(['TVD', 'KLD'], fontsize = 14)
-    ax.yaxis.set_tick_params(labelsize=14)
+    ax.set_xticklabels(['TVD', 'KLD'], fontsize = 13)
+    ax.yaxis.set_tick_params(labelsize=12)
     
     # remove top axes and right axes ticks
     ax.get_xaxis().tick_bottom()
@@ -349,7 +381,7 @@ def single_whiskerplot_comparison(base_path, fig, ax, data_name, criterion):
     #for m,y, c in zip(means, ypos, colors):
     ax.scatter(xpos,means, s=80, c=colors) #marker
 
-    ax.set_xticklabels(["TVD", "KLD"], fontsize = 10)
+    ax.set_xticklabels(["TVD", "KLD"], fontsize = 11)
     ax.set_xticks(xpos)
     
     #ax.axvline(x = means[baseline_index],linestyle = '--', color='grey')   
@@ -376,7 +408,7 @@ def boxplot_comparison(base_path, list_of_data_names, list_of_criteria, fig_size
 
 
 def boxplot_grouped_comparison(base_path, list_of_data_names, list_of_plot_names, 
-                               list_of_criteria, fig_size):
+                               list_of_criteria, fig_size, ylim=[0.48, 0.699]):
     """Create a plot s.t. each row gives a criterion, each col a data set"""
     
     # create panels
@@ -391,12 +423,13 @@ def boxplot_grouped_comparison(base_path, list_of_data_names, list_of_plot_names
             
             fig, ax_array[row, col] = single_boxplot_grouped_comparison(base_path, 
                   fig,ax_array[row,col], list_of_data_names[col], list_of_criteria[row])
+            ax_array[row, col].set_ylim(ylim)
             
             if row == 0:
-                ax_array[row, col].set_title(list_of_plot_names[col], fontsize=14)
+                ax_array[row, col].set_title(list_of_plot_names[col], fontsize=15)
             
             if col == 0:
-                ax_array[row, col].set_ylabel(ylabel_names[row], fontsize=14)
+                ax_array[row, col].set_ylabel(ylabel_names[row], fontsize=15)
     
     # for ax, i in zip(ax_array.flatten(), range(0, num_rows * num_cols)):
     #     ax = single_boxplot_grouped_comparison(base_path, fig,ax, 
@@ -407,7 +440,7 @@ def boxplot_grouped_comparison(base_path, list_of_data_names, list_of_plot_names
 
 
 """PLOT THE PROBIT RESULTS"""
-if True:
+if False:
     # set the save path (where are the results stored?)
     base_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/experiments_new"
     fig_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/figures"
@@ -421,16 +454,17 @@ if True:
     criteria = ["_log_probs_", "_accuracy_", "_probabilistic_accuracy_",
                    "_cross_entropy_"]
     
-    fig, ax = plt.subplots(2, 5, figsize = (12.5,3.5))
-    
     crits = [criteria[2], criteria[1]]
     sets = ["mammographic_mass", "fourclass", "heart", "haberman", 
             "breast-cancer-wisconsin"]
-    plot_headers = ["mammographic", "fourclass", "heart", "haberman", "breast cancer"]
+    plot_headers = ["mammograph", "fourclass", "heart", "haberman  ", "breast cancer   "]
     
     #if criterion != "_cross_entropy_":  
-    fig, ax = boxplot_grouped_comparison(base_path, sets,plot_headers, crits, (10,5))
+    fig, ax = boxplot_grouped_comparison(base_path, sets,plot_headers, crits, (7.5,8))
+    # (10,5)
+    fig.suptitle("Probit results", fontsize=18  )
     fig.tight_layout()
+        
     fig.savefig(fig_path + "/" + "probit_results.pdf")
             #data_name, criterion)
         # , bw_method = 0.2
@@ -438,6 +472,16 @@ if True:
     #fig, ax = single_boxplot_comparison(base_path, fig, ax, 
     #        data_name, criterion)
     
+    
+    #  btvd = ax.boxplot(tvd, positions = np.array(range(len(tvd))) * 3 - 0.8,
+    #                            sym = '', widths = 0.6, patch_artist = True,
+    #                            boxprops = dict(facecolor = '#009E73'),
+    #                            medianprops = dict(color = 'black'))
+
+    # Color scheme:
+    # TVD '#009E73'
+    # KLD '#56B4E9'
+    # Stan '#E69F00'
 
 """PLOT THE PROBIT RESULTS WITH CONTAMINATION"""
 if False:
@@ -471,7 +515,7 @@ if False:
     
     
 """PLOT THE NN RESULTS"""
-if False:
+if True:
     # set the save path (where are the results stored?)
     base_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/experiments/NN"
     fig_path = "/Users/jeremiasknoblauch/Documents/OxWaSP/tvd_loss/tvd_loss/figures"
@@ -483,8 +527,6 @@ if False:
     criteria = ["_log_probs_", "_accuracy_", "_probabilistic_accuracy_",
                    "_cross_entropy_"]
     
-    fig, ax = plt.subplots(2, 4, figsize = (10,5))
-    
     crits = [criteria[2], criteria[1]]
     sets = ["pima", "diabetic", 
             "banknote_authentication", "ilpd", "rice"]
@@ -492,7 +534,9 @@ if False:
             "banknote", "ilpd", "rice"]
     
     #if criterion != "_cross_entropy_":  
-    fig, ax = boxplot_grouped_comparison(base_path, sets, plot_headers, crits, (10,5))
+    fig, ax = boxplot_grouped_comparison(base_path, sets, plot_headers, crits, (7.5,8))
+    fig.tight_layout()
+    fig.suptitle("Neural Network results", fontsize=18  )
     fig.tight_layout()
     fig.savefig(fig_path + "/" + "NN_results.pdf")
             #data_name, criterion)
