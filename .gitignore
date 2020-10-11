@@ -1,3 +1,6 @@
+sim_eps/
+sim_zeroinfl/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
