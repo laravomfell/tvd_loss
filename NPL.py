@@ -259,6 +259,8 @@ class NPL():
         #               np.array ind of indices such that ind[i] is the index 
         #               of X_unique which maps onto the i-1 th entry of X.
         #               I.e., X[ind[i]] = X_unique[i]
+        
+               
         def find_unique_indices(X_, X_unique):                        
             myL = []
             for x in X_:
@@ -282,6 +284,7 @@ class NPL():
         Y_unique, Y_unique_indices, Y_counts = np.unique(
             Y, return_counts = True, return_inverse = True, axis=0)
         Y_pmf = Y_counts / n
+        
         
         YX_unique, YX_unique_indices, YX_counts = np.unique(
             np.hstack((np.atleast_2d(Y).T, X)), 
