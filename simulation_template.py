@@ -13,8 +13,6 @@ import os
 import pystan
 from NPL import NPL
 import platform
-import time
-import pdb
 
 class simulations():
     """this class first sets up a generic simulation environment. 
@@ -42,7 +40,7 @@ class simulations():
         self.var_par = var_par
         
     def data_setup(self, contam_type, n, p, params, continuous_x, 
-                   share, contam_par):
+                   share, contam_par, extra = 0):
         
         """take data setup information and assign to self
         
@@ -62,13 +60,21 @@ class simulations():
         self.continuous_x = continuous_x
         self.share = share        
         self.contam_par = contam_par
+        self.extra = extra
         
        
     def parse_setup(self):
-        X,Y = self.contam_type(share = self.share, 
+        if self.extra == 0:
+            X,Y = self.contam_type(share = self.share, 
+                   contam_par = self.contam_par,
+                   n = self.n, p = self.p, params = self.params,
+                   continuous_x = self.continuous_x).contaminate()
+        else:
+            X,Y = self.contam_type(share = self.share, 
                                contam_par = self.contam_par,
                                n = self.n, p = self.p, params = self.params,
-                               continuous_x = self.continuous_x).contaminate()
+                               continuous_x = self.continuous_x,
+                               n_trials = self.extra).contaminate()
         return(X, Y)
     
         
