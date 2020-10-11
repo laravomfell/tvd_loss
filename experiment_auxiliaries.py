@@ -24,7 +24,11 @@ def get_probit_data(data_path, data_name):
 
 
 def get_test_performance(X, Y, num_splits, train_proportion, L, B, 
-                             save_path, data_name, print_option = True):
+                             save_path, data_name, 
+                             contamination_factor = None, 
+                             contamination_proportion= None,
+                             contaminated=False,
+                             print_option = True):
     """Take in a data set (X,Y), split it (randomly) and train on a 
     portion of the data (test on the remainder)"""
     
@@ -50,16 +54,32 @@ def get_test_performance(X, Y, num_splits, train_proportion, L, B,
         X_test = X[test_indices,:]
         Y_test = Y[test_indices]
         
+        # if contamination factor and contamination proportion supplied, 
+        # add contamination into the training data
+        if contaminated:
+            contamination_size = np.ceil(np.std(X, axis=0)) * contamination_factor
+            n_contam = int(np.ceil(n_train * contamination_proportion))
+            contam_indices = np.random.choice(n_train, size = n_contam, replace=False)
+            X_train[contam_indices,:] + contamination_size[np.newaxis,:]
+            # Y_train[contam_indices] = (Y_train[contam_indices] - 1.0)*(-1)
+            # Y_train = Y_train.astype(int)
+            # print("cont size", contamination_size)
+        
         # Sample from NPL object, based on the train proportion of (X,Y)
         npl_sampler.draw_samples(Y_train, X_train,B, display_opt=False)
         
         # Test on the remainder of (X,Y)
         log_probs, accuracy, cross_entropy = npl_sampler.predict(Y_test, X_test)
+        # print("log probs",log_probs)
+        # print("acc",accuracy)
+        # print("ce",cross_entropy)
+        
         log_probs_init, accuracy_init, cross_entropy_init = npl_sampler.predict_log_loss(Y_test, X_test)
-        accuracy_prob = 1 - np.abs(np.exp(log_probs) - 
-                                           Y_test[:,np.newaxis])
-        accuracy_prob_init = 1 - np.abs(np.exp(log_probs_init) - 
-                                                Y_test[:,np.newaxis])
+        accuracy_prob = np.abs(np.exp(log_probs) * Y_test[:,np.newaxis]
+                                   + (np.exp(log_probs)-1) * (1-Y_test[:,np.newaxis]))
+        accuracy_prob_init = np.abs(np.exp(log_probs_init) * Y_test[:,np.newaxis]
+                                   + (np.exp(log_probs_init)-1) * (1-Y_test[:,np.newaxis]))
+        
         
         # notify user of results
         if print_option:
