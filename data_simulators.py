@@ -49,8 +49,9 @@ class PoissonSim():
                                  size = self.n * (self.p-1))]).transpose()
         
         if self.p > 1 and self.continuous_x is False:
-            self.X = np.random.choice(4, self.n * self.p).reshape(self.n, self.p)
-        
+            self.X = np.column_stack((np.ones(self.n),
+                                      np.random.choice(4,self.n * (self.p - 1)).reshape(self.n, (self.p-1))))
+            
     def run(self):
         # generate covariates
         self.generate_X()
@@ -190,7 +191,7 @@ class BinomSim():
                                  size = self.n * (self.p-1))]).transpose()
         
         if self.p > 1 and self.continuous_x is False:
-            self.X = np.random.choice(4, self.n * self.p).reshape(self.n, self.p)
+            self.X = np.random.choice(1, self.n * self.p).reshape(self.n, self.p)
         
     def run(self):
         # generate covariates

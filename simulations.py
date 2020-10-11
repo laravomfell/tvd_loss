@@ -62,6 +62,7 @@ from NPL import NPL
 # t1 = time.time()
 # print((t1 - t0)/60)
 
+
 if False:
     X, Y = ZeroInflBinom(n = 250, p = 2, params = np.array([-0.5, 0.6]), u_bound = 5,
                           continuous_x=True, share = 0.3, contam_par = 1).contaminate()
@@ -104,6 +105,21 @@ npl_b.draw_samples(Y,X, 500)
 #                      n = 250, p = 2, params = np.array([0.5, 0.6]),
 #                      continuous_x = True, share = i/100, contam_par = 1)
 #     stest.simulate()
+
+t0 = time.time()
+stest = simulations(nsim = 100, B = 1000, 
+                    lik = PoissonLikelihood, 
+                    save_path = "D:/research/tvd_loss/sim_zeroinfl/",
+                    stan_model = "stan_poisson.stan",
+                    test_size = 0.2,
+                    var_par = 'share')
+for i in range(0, 60, 10):
+    print("on p:", i)
+    stest.data_setup(ZeroInflContam, 
+                      n = 250, p = 2, params = np.array([-0.5, 1.25]),
+                      continuous_x = False, share = i/100, contam_par = 1)
+    stest.simulate()
+
     
-# t1 = time.time()
-# print((t1 - t0)/60)
+t1 = time.time()
+print((t1 - t0)/60)
