@@ -2,4 +2,6 @@
 
 This repository contains the code used to generate the results in the paper ``Robust Bayesian Inference for Discrete Outcomes with the Total Variation Distance''.
 
-`NPL.py' implements a simplified version of nonarametric Bayesian Learning; 'likelihood_functions.py' provide a range of likelihood classes to use with NPL.
+`NPL.py' implements a simplified version of nonarametric Bayesian Learning; `likelihood_functions.py' provides a range of likelihood classes to use with NPL.
+
+`run_simulations.py' recreates all simulation results from Section 6 of the paper, while `probit_experiments.py' and `NN_experiments.py' reproduce the real world data parts.
