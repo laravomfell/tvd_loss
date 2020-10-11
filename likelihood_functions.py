@@ -3,7 +3,7 @@
 """
 Created on Fri Aug 14 09:35:37 2020
 
-@author: jeremiasknoblauch
+@author: Jeremias Knoblauch and Lara Vomfell
 
 Description: Likelihood function wrappers for use within NPL class
 """
@@ -446,11 +446,10 @@ class BinomialLikelihood(Likelihood):
     def initialize(self, Y, X, weights = None):
         
         # return mle initialization
-        MLE = sm.GLM(np.vstack((Y, max(Y) - Y)).T, X, family = sm.families.Binomial(
+        MLE = sm.GLM(np.column_stack((Y, max(Y) - Y)), X, family = sm.families.Binomial(
             sm.families.Binomial.links[0]),
             freq_weights = weights).fit().params
         
-        print("MLE:", MLE)
         return MLE
     
     def evaluate(self, params, Y_unique, X_unique):
@@ -597,6 +596,52 @@ class PoissonLikelihood(Likelihood):
         return (predictive_log_likelihoods, SE, AE)
         
 
+class SimplePoissonLikelihood(Likelihood):
+    """Simplified Poisson inference without any covariates"""
+
+    def __init__(self, name = "Poisson w/o covariates"):
+         self.name = name
+        
+    def initialize(self, Y, X, weights = None):
+        # return MLE init
+        MLE = sm.GLM(Y, X, family = sm.families.Poisson(),
+                     freq_weights = weights).fit().params      
+        return np.exp(MLE)
+    
+    def evaluate(self, params, Y_unique, X_unique):
+        # first comupute lambda
+        lambdas = np.matmul(X_unique, params)
+        
+        # Second, use the standard poisson pmf to evaluate the likelihood
+        n_X_unique = X_unique.shape[0]
+        n_Y_unique = Y_unique.shape[0]
+        
+        Y_given_X_model = poisson.pmf(
+                np.repeat(Y_unique,n_X_unique).reshape(n_Y_unique, n_X_unique),
+                np.tile(lambdas, n_Y_unique).reshape(n_Y_unique, n_X_unique) 
+                )
+                
+        return Y_given_X_model
+    
+    def predict(self, Y,X, parameter_sample):
+        """Given a sample of (X,Y) as well as a sample of network parameters, 
+        compute p_{\theta}(Y|X) and compare against the actual values of Y"""
+        
+        # Get the lambda(X, \theta_i) for all parameters \theta_i in sample.
+        # The i-th column corresponds to lambda(X, \theta_i).
+        lambdas = np.matmul(X, np.transpose(parameter_sample))
+
+        
+        # Get the predictive/test log likelihoods
+        predictive_log_likelihoods = poisson.logpmf(
+            Y[:, None], lambdas)
+        
+        # Get the MSE and MAE
+        SE = (Y[:, None] - lambdas)**2
+        AE = np.abs(Y[:, None] - lambdas)
+        
+        return (predictive_log_likelihoods, SE, AE)
+        
 
 class PoissonLikelihoodSqrt(Likelihood):
     """Use the link function lambda(x) = |abs(x)|^1/2 to make the gradients
