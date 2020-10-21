@@ -12,12 +12,12 @@ and a TVD-minimizing model and plotting the resulting pmfs.
 
 import numpy as np
 
-from likelihood_functions import SimplePoissonLikelihood
+from npl.likelihood_functions import SimplePoissonLikelihood
 
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
-from NPL import NPL
+from npl.NPL import NPL
 
 # Figure 1
 

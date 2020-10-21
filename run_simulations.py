@@ -17,9 +17,9 @@ c) a fully Bayesian model using pystan (drawing 4,000 posterior samples)
 
 import numpy as np
 
-from likelihood_functions import SimplePoissonLikelihood, BinomialLikelihood
-from epsilon_simulation import simulations
-from data_simulators import EpsilonContam, ZeroInflBinom
+from npl.likelihood_functions import SimplePoissonLikelihood, BinomialLikelihood
+from auxiliaries.simulation_template import simulations
+from auxiliaries.data_simulators import EpsilonContam, ZeroInflBinom
 
 
 
@@ -28,8 +28,8 @@ from data_simulators import EpsilonContam, ZeroInflBinom
 # set up simulation params 
 eps = simulations(nsim = 100, B = 1000, 
                   lik = SimplePoissonLikelihood, 
-                  save_path = "D:/research/tvd_loss/sim_eps/",
-                  stan_model = "stan_poisson.stan",
+                  save_path = 'data/sim_eps/',
+                  stan_model = 'stan_models/stan_poisson.stan',
                   test_size = 0.2, 
                   var_par = 'contam_par')
 
@@ -50,8 +50,8 @@ for k in range(0, 24, 4):
 
 zero = simulations(nsim = 100, B = 1000, 
                    lik = BinomialLikelihood,
-                   save_path = "D:/research/tvd_loss/sim_zeroinfl/",
-                   stan_model = "stan_binomial.stan",
+                   save_path = 'data/sim_zeroinfl/',
+                   stan_model = 'stan_models/stan_binomial.stan',
                    test_size = 0.2,
                    var_par = 'share')
 
