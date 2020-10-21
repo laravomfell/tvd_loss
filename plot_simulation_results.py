@@ -196,13 +196,15 @@ def result_panels(result_path, xlab, figname, setting, bayes= True):
         
 # create three-panel figures for each simulation type:
 # specify result_path
-result_path = ''
-result_panels(result_path = 'd:/research/tvd_loss/sim_zeroinfl', 
+zeroinfl_path = 'data/sim_zeroinfl'
+result_panels(result_path = zeroinfl_path, 
               xlab = 'Proportion of zero-inflation', 
               figname = 'figures/zero_inflation', 
               setting = 'Zero-inflation', 
               bayes = True)
-result_panels(result_path = 'd:/research/tvd_loss/sim_eps', 
+
+eps_path = 'data/sim_eps'
+result_panels(result_path = eps_path, 
               xlab = 'k', 
               figname = 'figures/epsilon', 
               setting = 'Epsilon contamination', 
