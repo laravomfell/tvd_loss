@@ -1,5 +1,4 @@
-sim_eps/
-sim_zeroinfl/
+# ignore big .csv files
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
