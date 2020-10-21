@@ -14,7 +14,7 @@ import numpy as np
 from scipy.stats import dirichlet
 from scipy.optimize import minimize
 from scipy.stats import poisson
-from likelihood_functions import SoftMaxNN
+from npl.likelihood_functions import SoftMaxNN
 
 
 class NPL():
