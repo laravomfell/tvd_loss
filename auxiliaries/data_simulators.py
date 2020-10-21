@@ -5,7 +5,7 @@ Created on Wed May 20 10:38:23 2020
 @author: Lara Vomfell
 
 This file provides simple classes that allow one to specify both the 'pure'
-or uncontaminated DGP as well as the type of contamination. 
+(uncontaminated) DGP as well as the type of contamination. 
 
 Defining things this way is useful because it plays nice with the simulation 
 template we use.

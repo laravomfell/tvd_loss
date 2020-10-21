@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import os
 import pystan
-from NPL import NPL
+from npl.NPL import NPL
 import platform
 
 class simulations():
